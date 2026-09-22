@@ -187,6 +187,18 @@ target_include_directories(P3_Drag_Helper_Tests PRIVATE samples/p3_interactive_s
 target_link_libraries(P3_Drag_Helper_Tests PRIVATE AuroraGlassControls)
 add_test(NAME P3_Drag_Helper_Tests COMMAND P3_Drag_Helper_Tests)
 
+# P3 Slice D - interactive controls sample (new; frozen baselines untouched).
+add_executable(P3_Interactive_Smoke samples/p3_interactive_smoke/main.cpp)
+target_link_libraries(P3_Interactive_Smoke PRIVATE AuroraGlassCore AuroraGlassControls d3d11 dxgi d3dcompiler windowscodecs ole32)
+add_custom_command(TARGET P3_Interactive_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P3_Interactive_Smoke>/shaders)
+add_custom_command(TARGET P3_Interactive_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/samples/p3_interactive_smoke/shaders
+        $<TARGET_FILE_DIR:P3_Interactive_Smoke>/shaders)
+
 # P3 Slice C — multi-control visual sample (new; frozen baselines untouched).
 add_executable(P3_Controls_Smoke samples/p3_controls_smoke/main.cpp)
 target_link_libraries(P3_Controls_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
