@@ -9,6 +9,12 @@ if(MSVC)
     add_compile_options(/W4 /utf-8 /EHsc /permissive-)
 endif()
 
+# Pure-CPU material value type (GlassMaterial) is factored into its own small
+# library so that CPU-only consumers (Controls) can link it without pulling in
+# any D3D/GPU objects. No source or API change — build organization only.
+add_library(AuroraGlassMaterial STATIC src/core/glass_material.cpp)
+target_include_directories(AuroraGlassMaterial PUBLIC src)
+
 set(CORE_SOURCES
     src/core/d3d11_device.cpp
     src/core/glass_params.cpp
@@ -16,12 +22,12 @@ set(CORE_SOURCES
     src/core/background_source.cpp
     src/core/glass_renderer.cpp
     # P1 additions (parallel with P0 files; P0 files retained until migration completes)
-    src/core/glass_material.cpp
     src/core/glass_surface.cpp
 )
 
 add_library(AuroraGlassCore STATIC ${CORE_SOURCES})
 target_include_directories(AuroraGlassCore PUBLIC src)
+target_link_libraries(AuroraGlassCore PUBLIC AuroraGlassMaterial)
 
 add_executable(P0_Proof samples/p0_proof/main.cpp)
 target_link_libraries(P0_Proof PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
@@ -147,7 +153,16 @@ set(CONTROLS_SOURCES
 )
 add_library(AuroraGlassControls STATIC ${CONTROLS_SOURCES})
 target_include_directories(AuroraGlassControls PUBLIC src)
+# Controls depend on the GlassMaterial value type only (pure CPU) — never on
+# GlassSurface / D3D.
+target_link_libraries(AuroraGlassControls PUBLIC AuroraGlassMaterial)
 
 add_executable(P3_Controls_Tests tests/p3_controls_tests.cpp)
 target_link_libraries(P3_Controls_Tests PRIVATE AuroraGlassControls)
 add_test(NAME P3_Controls_Tests COMMAND P3_Controls_Tests)
+
+# P3 Slice B — state -> GlassMaterial mapping. Pure CPU; depends on the frozen
+# Core value type GlassMaterial (header-only) but NOT on GlassSurface/D3D.
+add_executable(P3_Style_Tests tests/p3_style_tests.cpp)
+target_link_libraries(P3_Style_Tests PRIVATE AuroraGlassControls)
+add_test(NAME P3_Style_Tests COMMAND P3_Style_Tests)
