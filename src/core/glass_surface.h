@@ -71,6 +71,21 @@ struct FrameInfo {
     DiagnosticStages   stages;         // diagnostic stage toggles (not part of material)
 };
 
+// A glass rectangle in PHYSICAL PIXELS, origin at the GlassSurface top-left
+// (+x right, +y down). Deliberately NOT part of GlassMaterial or FrameInfo.
+//
+// P3 additive extension for multi-control rendering: several controls share one
+// GlassSurface, one background blur, and draw their own glass shapes via
+// RenderRect. This is a controlled additive extension on top of the frozen
+// v0.1-stable-candidate public API (triggered by a real P3 requirement); it
+// does not rewrite the historical frozen tags.
+struct GlassRect {
+    float x      = 0.0f;
+    float y      = 0.0f;
+    float width  = 0.0f;
+    float height = 0.0f;
+};
+
 class GlassSurface {
 public:
     GlassSurface() noexcept = default;
@@ -96,15 +111,59 @@ public:
 
     // Resize internal GPU resources. Returns ResourceError on failure.
     // After successful Resize, next Render uses the new size.
+    // Invalidates any active prepared batch.
     Status Resize(uint32_t width, uint32_t height);
 
-    // Render one frame.
+    // Render one frame (LEGACY single-surface path).
     // context, target, background are BORROWED for this call only.
-    // Returns InvalidArgument if any borrowed pointer is null (when required).
+    // Performs its own blur and composes the legacy centered 60% rectangle with
+    // legacy shader mode. Signature and behavior are unchanged.
     Status Render(ID3D11DeviceContext* context,
                   ID3D11RenderTargetView* target,
                   ID3D11ShaderResourceView* background,
                   const FrameInfo& frame);
+
+    // ---- Multi-control batch path (P3 additive extension) ----------------
+    //
+    // PrepareFrame establishes ONE prepared batch for the current frame:
+    //   - fixes the background SRV, FrameInfo/DiagnosticStages, the effective
+    //     blur radius, and the shared blurred intermediate;
+    //   - performs the background blur AT MOST ONCE (H pass then V pass);
+    //   - keeps a reference to the background until the next PrepareFrame,
+    //     Resize(), Reset(), or device-loss cleanup.
+    //
+    // After a successful PrepareFrame, call RenderRect 0..N times. There is no
+    // EndFrame. The host MUST NOT modify the prepared background resource's
+    // contents between PrepareFrame and the last RenderRect (otherwise the sharp
+    // background and the blurred intermediate could come from different versions).
+    //
+    // blurRadius follows GlassMaterial's validation rule exactly: NaN/Inf is
+    // rejected (InvalidArgument); out-of-range is clamped to [0,24].
+    //
+    // The host is responsible for drawing the target baseline (sharp background)
+    // BEFORE the RenderRect batch; PrepareFrame never touches the target.
+    Status PrepareFrame(ID3D11DeviceContext* context,
+                        ID3D11ShaderResourceView* background,
+                        const FrameInfo& frame,
+                        float blurRadius);
+
+    // Draws ONE glass shape into target, clipped to the rect (physical pixels).
+    //   - does NOT blur; uses the prepared background + blurred intermediate;
+    //   - uses the current SetMaterial() material for appearance;
+    //   - only writes inside the rounded glass shape (outside -> discarded), so a
+    //     later control never overwrites the target outside its own shape;
+    //   - applies a rectangular scissor (coarse clip); precise edge is the SDF;
+    //   - a rect fully outside the surface is a successful no-op.
+    //
+    // If the batch had blur enabled with blurRadius > 0, the current material's
+    // blur radius MUST equal the prepared blur radius, else InvalidArgument.
+    // (When blur is disabled, differing material blur radius is NOT an error.)
+    //
+    // Fails with NotInitialized if no successful PrepareFrame is active, or
+    // after Resize/Reset invalidated the prepared state.
+    Status RenderRect(ID3D11DeviceContext* context,
+                      ID3D11RenderTargetView* target,
+                      const GlassRect& rect);
 
     // Returns Status::DeviceLost if the underlying device has been removed or
     // reset (DXGI_ERROR_DEVICE_REMOVED / DXGI_ERROR_DEVICE_RESET).
@@ -133,6 +192,20 @@ private:
     // Internal implementation — reused from P0 verified pipeline.
     Status CreateShadersAndResources();
     Status CreateBlurTargets();
+    // Shared blur: background -> blurA (H) -> blurB (V). Does not touch target.
+    Status BlurBackgroundPasses(ID3D11DeviceContext* ctx,
+                                ID3D11ShaderResourceView* background,
+                                float blurRadius);
+    // Draw one glass shape. rectMode 0 = legacy (bgSharp outside SDF),
+    // 1 = multi-rect (discard outside SDF). useScissor applies scissorRS_.
+    Status ComposeGlass(ID3D11DeviceContext* ctx,
+                        ID3D11RenderTargetView* target,
+                        ID3D11ShaderResourceView* background,
+                        ID3D11ShaderResourceView* blurredSRV,
+                        const FrameInfo& frame,
+                        float centerX, float centerY, float halfW, float halfH,
+                        float rectMode,
+                        bool useScissor, const D3D11_RECT& scissor);
 
     // Device (lifetime extended via ComPtr).
     Microsoft::WRL::ComPtr<ID3D11Device> device_;
@@ -157,6 +230,17 @@ private:
 
     // Linear clamp sampler.
     Microsoft::WRL::ComPtr<ID3D11SamplerState> linearSampler_;
+
+    // Scissor-enabled rasterizer state (multi-rect path only; legacy Render is
+    // unaffected because it never enables scissor).
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> scissorRS_;
+
+    // ---- Prepared batch state (valid only while prepared_ == true) ----
+    bool             prepared_ = false;
+    float            preparedBlurRadius_ = 0.0f;
+    FrameInfo        preparedFrame_{};
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> preparedBackground_;   // borrowed, kept alive
+    Microsoft::WRL::ComPtr<ID3D11ShaderResourceView> preparedBlurredSRV_;  // blurSRVB_ or background
 
     // INTERNAL — shader directory discovered by Core at Create time.
     // NOT part of the public API; host never sets or reads this.

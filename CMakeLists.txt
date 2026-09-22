@@ -166,3 +166,26 @@ add_test(NAME P3_Controls_Tests COMMAND P3_Controls_Tests)
 add_executable(P3_Style_Tests tests/p3_style_tests.cpp)
 target_link_libraries(P3_Style_Tests PRIVATE AuroraGlassControls)
 add_test(NAME P3_Style_Tests COMMAND P3_Style_Tests)
+
+# P3 Slice C — multi-control batch path (PrepareFrame / RenderRect).
+add_executable(P3_Batch_Tests tests/p3_batch_tests.cpp)
+target_link_libraries(P3_Batch_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+add_custom_command(TARGET P3_Batch_Tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P3_Batch_Tests>/shaders)
+add_test(NAME P3_Batch_Tests COMMAND P3_Batch_Tests)
+
+# P3 Slice C — multi-control visual sample (new; frozen baselines untouched).
+add_executable(P3_Controls_Smoke samples/p3_controls_smoke/main.cpp)
+target_link_libraries(P3_Controls_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+# Core glass shaders (shared).
+add_custom_command(TARGET P3_Controls_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P3_Controls_Smoke>/shaders)
+# Sample-only host blit shader (NOT part of the AuroraGlass Core glass pipeline).
+add_custom_command(TARGET P3_Controls_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/samples/p3_controls_smoke/shaders
+        $<TARGET_FILE_DIR:P3_Controls_Smoke>/shaders)

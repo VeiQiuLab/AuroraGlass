@@ -18,7 +18,7 @@ cbuffer MaterialCB : register(b1)
     float4 m_D;        // x=centerX y=centerY z=halfW w=halfH
     float4 m_E;        // x=highlightX y=highlightY zw unused
     float4 m_Stages;   // x=refraction y=dispersion z=fresnel w=specular
-    float4 m_Stages2;  // x=mask y=colorAdjust zw unused
+    float4 m_Stages2;  // x=mask y=colorAdjust z=rectMode (0=legacy,1=discard outside) w unused
 };
 
 Texture2D    t_Background : register(t0);
@@ -58,6 +58,7 @@ float4 GlassPS(float4 pos : SV_Position) : SV_Target
     float sSpec  = m_Stages.w;
     float sMask  = m_Stages2.x;
     float sColor = m_Stages2.y;
+    float rectMode = m_Stages2.z;   // 0 = legacy (bgSharp outside), 1 = discard outside
 
     float2 p = px - center;
     float sdf = sdRoundRect(p, halfSize, cornerRadius);
@@ -75,6 +76,10 @@ float4 GlassPS(float4 pos : SV_Position) : SV_Target
 
     float3 bgSharp = t_Background.Sample(s_Linear, uv).rgb;
     if (coverage <= 0.0) {
+        // Legacy: composite the sharp background everywhere (unchanged behavior).
+        // Rect mode: write nothing outside the rounded glass shape so a later
+        // control never erases the target outside its own shape.
+        if (rectMode > 0.5) discard;
         return float4(bgSharp, 1.0);
     }
 

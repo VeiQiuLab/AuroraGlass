@@ -3,6 +3,7 @@
 
 #include <cstring>
 #include <cmath>
+#include <algorithm>
 #include <filesystem>
 #include <vector>
 #include <Windows.h>
@@ -53,6 +54,35 @@ struct MaterialCBData {
 struct BlurCBData {
     float texel[4];
     float param[4];
+};
+
+// RAII: restores the caller's rasterizer state and FULL scissor rect set on
+// scope exit. Used only by the multi-rect (scissor) path so RenderRect never
+// leaves a restrictive scissor behind for the host's later draws. Not a state
+// manager — just a scope cleanup for the state this path touches.
+struct ScissorStateGuard {
+    ID3D11DeviceContext* ctx = nullptr;
+    bool active = false;
+    Microsoft::WRL::ComPtr<ID3D11RasterizerState> prevRS;
+    UINT prevScissorCount = 0;
+    D3D11_RECT prevScissors[D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE]{};
+
+    ~ScissorStateGuard() {
+        if (active && ctx) {
+            ctx->RSSetState(prevRS.Get());
+            // Restore the complete scissor rect set (0..max), not just one rect.
+            ctx->RSSetScissorRects(prevScissorCount, prevScissors);
+        }
+    }
+
+    // Snapshot the caller's current RS + full scissor set.
+    void Capture(ID3D11DeviceContext* c) {
+        ctx = c;
+        active = true;
+        ctx->RSGetState(prevRS.GetAddressOf());
+        prevScissorCount = D3D11_VIEWPORT_AND_SCISSORRECT_OBJECT_COUNT_PER_PIPELINE;
+        ctx->RSGetScissorRects(&prevScissorCount, prevScissors);
+    }
 };
 
 Status WriteDynamicBuffer(ID3D11DeviceContext* ctx, ID3D11Buffer* buf,
@@ -136,8 +166,15 @@ Status GlassSurface::CheckDeviceLost() const noexcept {
 }
 
 void GlassSurface::Reset() noexcept {
+    // Invalidate any prepared batch first (releases its background reference).
+    prepared_ = false;
+    preparedBlurRadius_ = 0.0f;
+    preparedBackground_.Reset();
+    preparedBlurredSRV_.Reset();
+
     blurSRVB_.Reset(); blurRTVB_.Reset(); blurTexB_.Reset();
     blurSRVA_.Reset(); blurRTVA_.Reset(); blurTexA_.Reset();
+    scissorRS_.Reset();
     linearSampler_.Reset();
     blurCB_.Reset(); materialCB_.Reset(); frameCB_.Reset();
     glassPS_.Reset(); blurPS_.Reset(); fsVS_.Reset();
@@ -230,6 +267,16 @@ Status GlassSurface::CreateShadersAndResources() {
     hr = device_->CreateSamplerState(&sd, &linearSampler_);
     if (FAILED(hr)) return Status::ResourceError(hr);
 
+    // Scissor-enabled rasterizer state for the multi-rect path. Legacy Render
+    // never enables scissor, so its behavior is unchanged.
+    D3D11_RASTERIZER_DESC rd{};
+    rd.FillMode              = D3D11_FILL_SOLID;
+    rd.CullMode              = D3D11_CULL_NONE;
+    rd.DepthClipEnable       = TRUE;
+    rd.ScissorEnable         = TRUE;
+    hr = device_->CreateRasterizerState(&rd, &scissorRS_);
+    if (FAILED(hr)) return Status::ResourceError(hr);
+
     return Status::Ok();
 }
 
@@ -283,6 +330,12 @@ Status GlassSurface::Resize(uint32_t width, uint32_t height) {
 
     if (width == width_ && height == height_) return Status::Ok();
 
+    // Any prepared batch becomes invalid: its blurred intermediate is rebuilt.
+    prepared_ = false;
+    preparedBlurRadius_ = 0.0f;
+    preparedBackground_.Reset();
+    preparedBlurredSRV_.Reset();
+
     // Transactional: only commit the new size if resource recreation succeeds,
     // so Width()/Height() never report a size that does not match the actual
     // intermediate render targets.
@@ -319,136 +372,272 @@ Status GlassSurface::Render(ID3D11DeviceContext* ctx,
     const float w = (float)width_;
     const float h = (float)height_;
 
+    // ---- Shared blur (once per Render) ----
     ID3D11ShaderResourceView* blurredSRV = background;
-
     if (frame.stages.blur) {
-        // Horizontal: background -> blurA
-        {
-            D3D11_VIEWPORT vp{};
-            vp.Width = w; vp.Height = h; vp.MaxDepth = 1.0f;
-            ctx->OMSetRenderTargets(1, blurRTVA_.GetAddressOf(), nullptr);
-            ctx->RSSetViewports(1, &vp);
-            ctx->IASetInputLayout(nullptr);
-            ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            ctx->VSSetShader(fsVS_.Get(), nullptr, 0);
-            ctx->PSSetShader(blurPS_.Get(), nullptr, 0);
-
-            BlurCBData cb{};
-            cb.texel[0] = 1.0f / w;
-            cb.texel[1] = 1.0f / h;
-            cb.texel[2] = 1.0f; cb.texel[3] = 0.0f;
-            cb.param[0] = material_.GetBlurRadius();
-            Status s = WriteDynamicBuffer(ctx, blurCB_.Get(), &cb, sizeof(cb));
-            if (!s.ok()) return s;
-            ctx->PSSetConstantBuffers(0, 1, blurCB_.GetAddressOf());
-
-            ID3D11ShaderResourceView* srvs[] = { background };
-            ctx->PSSetShaderResources(0, 1, srvs);
-            ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
-            ctx->Draw(3, 0);
-
-            ID3D11ShaderResourceView* nullSRV[] = { nullptr };
-            ctx->PSSetShaderResources(0, 1, nullSRV);
-        }
-
-        // Vertical: blurA -> blurB
-        {
-            ctx->OMSetRenderTargets(1, blurRTVB_.GetAddressOf(), nullptr);
-            ctx->IASetInputLayout(nullptr);
-            ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-            ctx->VSSetShader(fsVS_.Get(), nullptr, 0);
-            ctx->PSSetShader(blurPS_.Get(), nullptr, 0);
-
-            BlurCBData cb{};
-            cb.texel[0] = 1.0f / w;
-            cb.texel[1] = 1.0f / h;
-            cb.texel[2] = 0.0f; cb.texel[3] = 1.0f;
-            cb.param[0] = material_.GetBlurRadius();
-            Status s = WriteDynamicBuffer(ctx, blurCB_.Get(), &cb, sizeof(cb));
-            if (!s.ok()) return s;
-            ctx->PSSetConstantBuffers(0, 1, blurCB_.GetAddressOf());
-
-            ID3D11ShaderResourceView* srvs[] = { blurSRVA_.Get() };
-            ctx->PSSetShaderResources(0, 1, srvs);
-            ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
-            ctx->Draw(3, 0);
-
-            ID3D11ShaderResourceView* nullSRV[] = { nullptr };
-            ctx->PSSetShaderResources(0, 1, nullSRV);
-        }
-
+        Status bs = BlurBackgroundPasses(ctx, background, material_.GetBlurRadius());
+        if (!bs.ok()) return bs;
         blurredSRV = blurSRVB_.Get();
     }
 
-    // Glass composite -> target
+    // Legacy compose: full-surface, centered 60% rectangle, rectMode = 0,
+    // scissor disabled. Behavior is unchanged from the frozen P1 Render.
+    D3D11_RECT noScissor{};
+    return ComposeGlass(ctx, target, background, blurredSRV, frame,
+                        w * 0.5f, h * 0.5f, w * 0.30f, h * 0.30f,
+                        /*rectMode*/0.0f, /*useScissor*/false, noScissor);
+}
+
+// ============================================================
+// Shared blur (used by legacy Render and PrepareFrame)
+// ============================================================
+
+Status GlassSurface::BlurBackgroundPasses(ID3D11DeviceContext* ctx,
+                                          ID3D11ShaderResourceView* background,
+                                          float blurRadius) {
+    const float w = (float)width_;
+    const float h = (float)height_;
+
+    // Horizontal: background -> blurA
     {
         D3D11_VIEWPORT vp{};
         vp.Width = w; vp.Height = h; vp.MaxDepth = 1.0f;
-        ctx->OMSetRenderTargets(1, &target, nullptr);
+        ctx->OMSetRenderTargets(1, blurRTVA_.GetAddressOf(), nullptr);
         ctx->RSSetViewports(1, &vp);
         ctx->IASetInputLayout(nullptr);
         ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         ctx->VSSetShader(fsVS_.Get(), nullptr, 0);
-        ctx->PSSetShader(glassPS_.Get(), nullptr, 0);
+        ctx->PSSetShader(blurPS_.Get(), nullptr, 0);
 
-        FrameCBData fcb{};
-        fcb.resolution[0] = w;
-        fcb.resolution[1] = h;
-        fcb.time[0] = frame.timeSeconds;
-        Status s = WriteDynamicBuffer(ctx, frameCB_.Get(), &fcb, sizeof(fcb));
+        BlurCBData cb{};
+        cb.texel[0] = 1.0f / w;
+        cb.texel[1] = 1.0f / h;
+        cb.texel[2] = 1.0f; cb.texel[3] = 0.0f;
+        cb.param[0] = blurRadius;
+        Status s = WriteDynamicBuffer(ctx, blurCB_.Get(), &cb, sizeof(cb));
         if (!s.ok()) return s;
+        ctx->PSSetConstantBuffers(0, 1, blurCB_.GetAddressOf());
 
-        float hlX, hlY;
-        material_.GetHighlightPosition(hlX, hlY);
-
-        MaterialCBData mcb{};
-        mcb.m_A[0] = material_.GetBlurRadius();
-        mcb.m_A[1] = material_.GetRefractionStrength();
-        mcb.m_A[2] = material_.GetDispersionStrength();
-        mcb.m_A[3] = material_.GetThickness();
-        mcb.m_B[0] = material_.GetEdgeFresnel();
-        mcb.m_B[1] = material_.GetSpecularStrength();
-        mcb.m_B[2] = material_.GetTintAmount();
-        mcb.m_B[3] = material_.GetSaturation();
-        mcb.m_C[0] = material_.GetBrightness();
-        mcb.m_C[1] = material_.GetNoiseAmount();
-        mcb.m_C[2] = material_.GetCornerRadius();
-        mcb.m_C[3] = material_.GetOpacity();
-        mcb.m_D[0] = w * 0.5f;
-        mcb.m_D[1] = h * 0.5f;
-        mcb.m_D[2] = w * 0.30f;
-        mcb.m_D[3] = h * 0.30f;
-        mcb.m_E[0] = hlX;
-        mcb.m_E[1] = hlY;
-        mcb.m_Stages[0] = frame.stages.refraction  ? 1.0f : 0.0f;
-        mcb.m_Stages[1] = frame.stages.dispersion  ? 1.0f : 0.0f;
-        mcb.m_Stages[2] = frame.stages.fresnel     ? 1.0f : 0.0f;
-        mcb.m_Stages[3] = frame.stages.specular    ? 1.0f : 0.0f;
-        mcb.m_Stages2[0] = frame.stages.mask       ? 1.0f : 0.0f;
-        mcb.m_Stages2[1] = frame.stages.colorAdjust ? 1.0f : 0.0f;
-
-        s = WriteDynamicBuffer(ctx, materialCB_.Get(), &mcb, sizeof(mcb));
-        if (!s.ok()) return s;
-
-        ID3D11Buffer* cbs[] = { frameCB_.Get(), materialCB_.Get() };
-        ctx->PSSetConstantBuffers(0, 2, cbs);
-
-        ID3D11ShaderResourceView* srvs[] = { background, blurredSRV };
-        ctx->PSSetShaderResources(0, 2, srvs);
+        ID3D11ShaderResourceView* srvs[] = { background };
+        ctx->PSSetShaderResources(0, 1, srvs);
         ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
-
         ctx->Draw(3, 0);
 
-        // Unbind SRVs so the surface's own blur textures (blurSRVA_/blurSRVB_)
-        // are not left bound as shader inputs after Render() returns. Otherwise a
-        // later Resize()/CreateBlurTargets() that reuses those textures as render
-        // targets would hit an "SRV still bound" hazard (D3D11 debug-layer warning
-        // and silently dropped RTV binding).
-        ID3D11ShaderResourceView* nullSRVs[] = { nullptr, nullptr };
-        ctx->PSSetShaderResources(0, 2, nullSRVs);
+        ID3D11ShaderResourceView* nullSRV[] = { nullptr };
+        ctx->PSSetShaderResources(0, 1, nullSRV);
+    }
+
+    // Vertical: blurA -> blurB
+    {
+        ctx->OMSetRenderTargets(1, blurRTVB_.GetAddressOf(), nullptr);
+        ctx->IASetInputLayout(nullptr);
+        ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+        ctx->VSSetShader(fsVS_.Get(), nullptr, 0);
+        ctx->PSSetShader(blurPS_.Get(), nullptr, 0);
+
+        BlurCBData cb{};
+        cb.texel[0] = 1.0f / w;
+        cb.texel[1] = 1.0f / h;
+        cb.texel[2] = 0.0f; cb.texel[3] = 1.0f;
+        cb.param[0] = blurRadius;
+        Status s = WriteDynamicBuffer(ctx, blurCB_.Get(), &cb, sizeof(cb));
+        if (!s.ok()) return s;
+        ctx->PSSetConstantBuffers(0, 1, blurCB_.GetAddressOf());
+
+        ID3D11ShaderResourceView* srvs[] = { blurSRVA_.Get() };
+        ctx->PSSetShaderResources(0, 1, srvs);
+        ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
+        ctx->Draw(3, 0);
+
+        ID3D11ShaderResourceView* nullSRV[] = { nullptr };
+        ctx->PSSetShaderResources(0, 1, nullSRV);
     }
 
     return Status::Ok();
+}
+
+// ============================================================
+// ComposeGlass — draw one glass shape (shared by legacy Render and RenderRect)
+// ============================================================
+
+Status GlassSurface::ComposeGlass(ID3D11DeviceContext* ctx,
+                                  ID3D11RenderTargetView* target,
+                                  ID3D11ShaderResourceView* background,
+                                  ID3D11ShaderResourceView* blurredSRV,
+                                  const FrameInfo& frame,
+                                  float centerX, float centerY,
+                                  float halfW, float halfH,
+                                  float rectMode,
+                                  bool useScissor, const D3D11_RECT& scissor) {
+    const float w = (float)width_;
+    const float h = (float)height_;
+
+    D3D11_VIEWPORT vp{};
+    vp.Width = w; vp.Height = h; vp.MaxDepth = 1.0f;
+    ctx->OMSetRenderTargets(1, &target, nullptr);
+    ctx->RSSetViewports(1, &vp);
+    // Only the multi-rect path touches rasterizer/scissor state, and it restores
+    // the caller's state on every exit path via the RAII guard. The legacy path
+    // deliberately does NOT touch RS state (unchanged from frozen P1 Render).
+    ScissorStateGuard guard;
+    if (useScissor) {
+        guard.Capture(ctx);
+        ctx->RSSetState(scissorRS_.Get());
+        ctx->RSSetScissorRects(1, &scissor);
+    }
+    ctx->IASetInputLayout(nullptr);
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->VSSetShader(fsVS_.Get(), nullptr, 0);
+    ctx->PSSetShader(glassPS_.Get(), nullptr, 0);
+
+    FrameCBData fcb{};
+    fcb.resolution[0] = w;
+    fcb.resolution[1] = h;
+    fcb.time[0] = frame.timeSeconds;
+    Status s = WriteDynamicBuffer(ctx, frameCB_.Get(), &fcb, sizeof(fcb));
+    if (!s.ok()) return s;
+
+    float hlX, hlY;
+    material_.GetHighlightPosition(hlX, hlY);
+
+    MaterialCBData mcb{};
+    mcb.m_A[0] = material_.GetBlurRadius();
+    mcb.m_A[1] = material_.GetRefractionStrength();
+    mcb.m_A[2] = material_.GetDispersionStrength();
+    mcb.m_A[3] = material_.GetThickness();
+    mcb.m_B[0] = material_.GetEdgeFresnel();
+    mcb.m_B[1] = material_.GetSpecularStrength();
+    mcb.m_B[2] = material_.GetTintAmount();
+    mcb.m_B[3] = material_.GetSaturation();
+    mcb.m_C[0] = material_.GetBrightness();
+    mcb.m_C[1] = material_.GetNoiseAmount();
+    mcb.m_C[2] = material_.GetCornerRadius();
+    mcb.m_C[3] = material_.GetOpacity();
+    mcb.m_D[0] = centerX;
+    mcb.m_D[1] = centerY;
+    mcb.m_D[2] = halfW;
+    mcb.m_D[3] = halfH;
+    mcb.m_E[0] = hlX;
+    mcb.m_E[1] = hlY;
+    mcb.m_Stages[0] = frame.stages.refraction  ? 1.0f : 0.0f;
+    mcb.m_Stages[1] = frame.stages.dispersion  ? 1.0f : 0.0f;
+    mcb.m_Stages[2] = frame.stages.fresnel     ? 1.0f : 0.0f;
+    mcb.m_Stages[3] = frame.stages.specular    ? 1.0f : 0.0f;
+    mcb.m_Stages2[0] = frame.stages.mask       ? 1.0f : 0.0f;
+    mcb.m_Stages2[1] = frame.stages.colorAdjust ? 1.0f : 0.0f;
+    mcb.m_Stages2[2] = rectMode;   // 0 = legacy (bgSharp outside), 1 = discard outside
+
+    s = WriteDynamicBuffer(ctx, materialCB_.Get(), &mcb, sizeof(mcb));
+    if (!s.ok()) return s;
+
+    ID3D11Buffer* cbs[] = { frameCB_.Get(), materialCB_.Get() };
+    ctx->PSSetConstantBuffers(0, 2, cbs);
+
+    ID3D11ShaderResourceView* srvs[] = { background, blurredSRV };
+    ctx->PSSetShaderResources(0, 2, srvs);
+    ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
+
+    ctx->Draw(3, 0);
+
+    ID3D11ShaderResourceView* nullSRVs[] = { nullptr, nullptr };
+    ctx->PSSetShaderResources(0, 2, nullSRVs);
+    return Status::Ok();
+}
+
+// ============================================================
+// PrepareFrame / RenderRect — multi-control batch path
+// ============================================================
+
+Status GlassSurface::PrepareFrame(ID3D11DeviceContext* ctx,
+                                  ID3D11ShaderResourceView* background,
+                                  const FrameInfo& frame,
+                                  float blurRadius) {
+    if (!device_ || !fsVS_) return Status::NotInitialized();
+    if (!ctx) return Status::InvalidArgument();
+    if (!background) return Status::InvalidArgument();
+    if (width_ == 0 || height_ == 0) return Status::NotInitialized();
+
+    Status dl = CheckDeviceLost();
+    if (!dl.ok()) return dl;
+
+    // blurRadius follows GlassMaterial's validation: NaN/Inf rejected,
+    // out-of-range clamped to [0,24]. Use the same rule, no new rule.
+    GlassMaterial probe;
+    Status vs = probe.SetBlurRadius(blurRadius);
+    if (!vs.ok()) return vs;   // InvalidArgument on NaN/Inf
+    const float effective = probe.GetBlurRadius();
+
+    // Invalidate any previous batch before rebuilding.
+    prepared_ = false;
+    preparedBackground_.Reset();
+    preparedBlurredSRV_.Reset();
+
+    ID3D11ShaderResourceView* blurred = background;
+    if (frame.stages.blur && effective > 0.0f) {
+        Status bs = BlurBackgroundPasses(ctx, background, effective);
+        if (!bs.ok()) return bs;
+        blurred = blurSRVB_.Get();
+    }
+
+    preparedBackground_   = background;   // ComPtr keeps it alive for the batch
+    preparedBlurredSRV_   = blurred;
+    preparedBlurRadius_   = effective;
+    preparedFrame_        = frame;
+    prepared_             = true;
+    return Status::Ok();
+}
+
+Status GlassSurface::RenderRect(ID3D11DeviceContext* ctx,
+                                ID3D11RenderTargetView* target,
+                                const GlassRect& rect) {
+    if (!device_) return Status::NotInitialized();
+    if (!prepared_) return Status::NotInitialized();   // must PrepareFrame first
+    if (!ctx) return Status::InvalidArgument();
+    if (!target) return Status::InvalidArgument();
+    if (width_ == 0 || height_ == 0) return Status::NotInitialized();
+
+    Status dl = CheckDeviceLost();
+    if (!dl.ok()) return dl;
+
+    // Validate rect: finite, positive size.
+    auto finite = [](float v) { return v == v && v != (float)INFINITY && v != -(float)INFINITY; };
+    if (!finite(rect.x) || !finite(rect.y) ||
+        !finite(rect.width) || !finite(rect.height)) return Status::InvalidArgument();
+    if (rect.width <= 0.0f || rect.height <= 0.0f) return Status::InvalidArgument();
+
+    // Batch blur contract: when blur was actually applied, the material's blur
+    // radius must match the prepared one. When blur is disabled it does not apply.
+    const bool blurApplied = preparedFrame_.stages.blur && preparedBlurRadius_ > 0.0f;
+    if (blurApplied && material_.GetBlurRadius() != preparedBlurRadius_) {
+        return Status::InvalidArgument();
+    }
+
+    // Scissor = floor(x)/floor(y)..ceil(x+w)/ceil(y+h), clamped to surface.
+    const float sx0 = std::floor(rect.x);
+    const float sy0 = std::floor(rect.y);
+    const float sx1 = std::ceil(rect.x + rect.width);
+    const float sy1 = std::ceil(rect.y + rect.height);
+
+    LONG left   = (LONG)(std::max)(0.0f, sx0);
+    LONG top    = (LONG)(std::max)(0.0f, sy0);
+    LONG right  = (LONG)(std::min)((float)width_,  sx1);
+    LONG bottom = (LONG)(std::min)((float)height_, sy1);
+
+    // Fully outside the surface -> successful no-op.
+    if (right <= left || bottom <= top) return Status::Ok();
+
+    D3D11_RECT scissor{ left, top, right, bottom };
+
+    // Geometry: rect in physical pixels -> center + half-extent for the SDF.
+    const float cx = rect.x + rect.width  * 0.5f;
+    const float cy = rect.y + rect.height * 0.5f;
+    const float hw = rect.width  * 0.5f;
+    const float hh = rect.height * 0.5f;
+
+    return ComposeGlass(ctx, target,
+                        preparedBackground_.Get(), preparedBlurredSRV_.Get(),
+                        preparedFrame_, cx, cy, hw, hh,
+                        /*rectMode*/1.0f, /*useScissor*/true, scissor);
 }
 
 } // namespace AuroraGlass
