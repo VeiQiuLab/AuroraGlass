@@ -283,9 +283,19 @@ Status GlassSurface::Resize(uint32_t width, uint32_t height) {
 
     if (width == width_ && height == height_) return Status::Ok();
 
+    // Transactional: only commit the new size if resource recreation succeeds,
+    // so Width()/Height() never report a size that does not match the actual
+    // intermediate render targets.
+    const uint32_t prevW = width_;
+    const uint32_t prevH = height_;
     width_  = width;
     height_ = height;
-    return CreateBlurTargets();
+    Status s = CreateBlurTargets();
+    if (!s.ok()) {
+        width_  = prevW;
+        height_ = prevH;
+    }
+    return s;
 }
 
 // ============================================================
@@ -428,6 +438,14 @@ Status GlassSurface::Render(ID3D11DeviceContext* ctx,
         ctx->PSSetSamplers(0, 1, linearSampler_.GetAddressOf());
 
         ctx->Draw(3, 0);
+
+        // Unbind SRVs so the surface's own blur textures (blurSRVA_/blurSRVB_)
+        // are not left bound as shader inputs after Render() returns. Otherwise a
+        // later Resize()/CreateBlurTargets() that reuses those textures as render
+        // targets would hit an "SRV still bound" hazard (D3D11 debug-layer warning
+        // and silently dropped RTV binding).
+        ID3D11ShaderResourceView* nullSRVs[] = { nullptr, nullptr };
+        ctx->PSSetShaderResources(0, 2, nullSRVs);
     }
 
     return Status::Ok();

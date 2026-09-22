@@ -18,7 +18,10 @@ struct D3D11Device {
     bool debugLayerActive = false;
 
     bool Init(HWND hwnd);
-    void Resize(uint32_t newWidth, uint32_t newHeight);
+    // Resizes the swap chain + backbuffer RTV. Returns the HRESULT unmodified
+    // (not swallowed). On failure the previous size is preserved where possible.
+    // Device-lost HRESULTs are returned as-is for the host to classify.
+    HRESULT Resize(uint32_t newWidth, uint32_t newHeight);
     // Presents the swap chain. Returns the HRESULT unmodified (not swallowed);
     // the host can test it with IsDeviceLostHResult() to detect device removal.
     HRESULT Present();

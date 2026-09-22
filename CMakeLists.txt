@@ -74,3 +74,25 @@ add_custom_command(TARGET P2_Stress_Tests POST_BUILD
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P2_Stress_Tests>/shaders)
 add_test(NAME P2_Stress_Tests COMMAND P2_Stress_Tests)
+
+# ------------------------------------------------------------
+# P2 Slice 2 — resize / zero-size robustness (tests/ only).
+# ------------------------------------------------------------
+add_executable(P2_Resize_Tests tests/p2_resize_tests.cpp)
+target_link_libraries(P2_Resize_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+add_custom_command(TARGET P2_Resize_Tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P2_Resize_Tests>/shaders)
+add_test(NAME P2_Resize_Tests COMMAND P2_Resize_Tests)
+
+# ------------------------------------------------------------
+# P2 Slice 2 — resize/minimize/restore diagnostic host (new sample;
+# does not modify frozen p0_proof / p1_smoke / p1_proof / p1_tests).
+# ------------------------------------------------------------
+add_executable(P2_Resize_Smoke samples/p2_resize_smoke/main.cpp)
+target_link_libraries(P2_Resize_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+add_custom_command(TARGET P2_Resize_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P2_Resize_Smoke>/shaders)

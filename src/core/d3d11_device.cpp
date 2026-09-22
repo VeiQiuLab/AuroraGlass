@@ -68,26 +68,29 @@ bool D3D11Device::Init(HWND hwnd) {
     return true;
 }
 
-void D3D11Device::Resize(uint32_t newWidth, uint32_t newHeight) {
-    if (!swapChain || !context) return;
-    if (newWidth == 0 || newHeight == 0) return;
+HRESULT D3D11Device::Resize(uint32_t newWidth, uint32_t newHeight) {
+    if (!swapChain || !context) return E_UNEXPECTED;
+    if (newWidth == 0 || newHeight == 0) return E_INVALIDARG;
 
     context->ClearState();
     context->Flush();
 
+    // Release the backbuffer RTV before ResizeBuffers (required by DXGI).
     rtv.Reset();
-    HRESULT hr = swapChain->ResizeBuffers(0, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, 0);
-    if (FAILED(hr)) return;
 
+    HRESULT hr = swapChain->ResizeBuffers(0, newWidth, newHeight, DXGI_FORMAT_UNKNOWN, 0);
+    if (FAILED(hr)) return hr;   // device-lost HRESULT returned as-is
+
+    // Only commit the new size after ResizeBuffers succeeds.
     width = newWidth;
     height = newHeight;
 
     ComPtr<ID3D11Texture2D> backBuffer;
     hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), &backBuffer);
-    if (FAILED(hr)) return;
+    if (FAILED(hr)) return hr;
 
     hr = device->CreateRenderTargetView(backBuffer.Get(), nullptr, &rtv);
-    if (FAILED(hr)) return;
+    if (FAILED(hr)) return hr;
 
     context->OMSetRenderTargets(1, rtv.GetAddressOf(), nullptr);
 
@@ -99,6 +102,8 @@ void D3D11Device::Resize(uint32_t newWidth, uint32_t newHeight) {
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
     context->RSSetViewports(1, &vp);
+
+    return S_OK;
 }
 
 HRESULT D3D11Device::Present() {
