@@ -1,177 +1,100 @@
 # AuroraGlass — Gate Report (Last Gate)
 
 **Last updated:** 2026-09-22
-**Active Phase:** P1 — Core Library
-**P1 Gate Result:** APPROVED / FROZEN (Owner Final Approval 2026-09-22)
-**P0 Phase Result:** APPROVED / FROZEN
-**Next Phase:** P2 — Core Stabilization (NOT started)
+**Active Phase:** P2 — Core Stabilization
+**P2 Gate Result:** APPROVED / FROZEN (Owner Final P2 Review 2026-09-22)
+**Core Public API Candidate:** `v0.1-stable-candidate`
+**Previous Phases:** P0 APPROVED / FROZEN; P1 APPROVED / FROZEN
+**Next Phase:** P3 — Controls (NOT started)
 
-> This report reflects the actual workspace state as verified by the
-> handover audit. It is not a transcription of prior agent claims.
-> Only commands that were actually executed and observed are recorded
-> as evidence.
-
----
-
-## P0 — Visual Core Proof: APPROVED / FROZEN
-
-- Owner Visual Review: PASS.
-- Frozen golden baseline retained at `samples/p0_proof` — must never be
-  modified, deleted, or rewritten.
-- `samples/p0_proof/main.cpp` still consumes the P0-internal pipeline
-  (`GlassRenderer` / `GlassMaterialParams` / `StageFlags`); it has NOT been
-  migrated to the P1 public API. Its source mtime precedes all P1 files.
-- Note: this workspace is NOT a git repository, so P0 frozen status is
-  verified by source content and file timestamps, not by commit history.
+> This report records only validations that were actually executed and
+> observed. No un-executed verification is recorded as passing.
 
 ---
 
-## P1 — Core Library: REVIEW
+## P2 — Core Stabilization: APPROVED / FROZEN
 
-### Owner Validation
+### Owner Manual Gates
 
-- Owner Visual Parity = **PASS** (P0_Proof vs P1_Proof compared by eye;
-  no visible difference reported).
+- **Owner Multi-monitor / DPI Manual Validation = PASS** — Owner moved the
+  window back and forth across different DPI / monitor paths with no crash and
+  no obvious visual corruption.
+- **D3D11 Live Object Manual Gate = PASS** — Owner captured the original
+  DebugView report; the follow-up lifecycle diagnosis confirmed:
+  - every non-Device reported object had Refcount 0 / IntRef 1;
+  - with `D3D11_RLDO_IGNORE_INTERNAL` those runtime-internal objects disappear;
+  - no AuroraGlass GPU resource still held an external COM reference;
+  - the single remaining `Live ID3D11Device` is required to keep the
+    `ID3D11Debug` alive for the report.
 
-### Confirmed present in the workspace (handover audit)
+Accurate conclusion recorded (per Owner): **"No application-owned D3D11 resource
+leak was observed."** (This is NOT a claim that "absolutely zero D3D objects
+exist at report time".)
 
-- `GlassMaterial` — stable public value type with validated setters; does
-  not expose HLSL / constant-buffer / pass internals.
-- `GlassSurface` — public rendering surface abstraction.
-  - Owns `ID3D11Device` via `ComPtr` (extends device lifetime).
-  - Borrows `ID3D11DeviceContext*` / backbuffer RTV / background SRV only
-    for the duration of `Render()`.
-  - Non-copyable, movable, RAII cleanup in destructor, `Reset()` idempotent.
-- `SurfaceDesc` — exposes only `width` / `height`; `shaderDir` is internal
-  and no longer part of the public descriptor.
-- `Status` / `ErrorCode` — unified error model; no swallowed HRESULT, no
-  magic bool.
-- `DiagnosticStages` — kept separate from `GlassMaterial`.
-- `samples/p1_smoke` — runtime/API smoke test using the P1 public API.
-- `samples/p1_proof` — P1 public API visual parity sample.
-- CMake builds `AuroraGlassCore` (static lib) + `P0_Proof` + `P1_Smoke` +
-  `P1_Proof`.
+### Implementation slices (all PASS)
 
-### Evidence actually observed during the handover audit
+- **Slice 1 — Repeated lifecycle stress**: `tests/p2_stress_tests` (9800 checks).
+  Working set converges (round-1 +25048 KB, round-2 marginal +616 KB) → no
+  sustained-growth leak. Debug Layer ACTIVE. `ReportLiveDeviceObjects` executed.
+- **Slice 2 — Resize / minimize / restore robustness**: hardened
+  `D3D11Device::Resize` (HRESULT not swallowed; device-lost classified),
+  transactional `GlassSurface::Resize`, SRV unbind hygiene in
+  `GlassSurface::Render`. New `samples/p2_resize_smoke` +
+  `tests/p2_resize_tests` (48 checks).
+- **Slice 3 — DPI / multi-monitor validation**: host enables
+  `PER_MONITOR_AWARE_V2` before HWND creation, handles `WM_DPICHANGED` via the
+  suggested RECT, drives resize from real client pixels. DPI never enters Core.
+  New `samples/p2_dpi_smoke` + `docs/P2_DPI_VALIDATION.md`.
+- **Slice 4 — Performance baseline**: offscreen benchmark via the P1 public API,
+  CPU (QPC around `Render`) and GPU (D3D11 timestamp queries) separated.
+  New `samples/p2_bench` + `docs/P2_PERFORMANCE_BASELINE.md`.
+- **Slice 5 — Error-path coverage + API review**: hardened
+  `D3D11Device::Init` and `BackgroundSource` error paths; new
+  `tests/p2_errorpath_tests` (34 checks); `docs/P2_API_REVIEW.md` records the
+  Core public API as `v0.1-stable-candidate` with no blocking design flaw.
+- **Live-object diagnosis**: added `tests/liveobject_capture.cpp` (DebugView-
+  style capture) and documented `D3D11Device::ReportLiveObjects` default flags
+  (`DETAIL | IGNORE_INTERNAL`) with rationale.
 
-Build:
+### Performance baseline (Release, debug layer OFF; single machine)
 
-```
-cmake --build build --config Debug
-  -> AuroraGlassCore.lib
-  -> P0_Proof.exe
-  -> P1_Proof.exe
-  -> P1_Smoke.exe
-```
+GPU time via D3D11 timestamp queries; Present/vsync and background generation
+excluded (offscreen, static SRV). FPS-like values are **GPU-equivalent
+throughput based on isolated GPU render time, NOT real app FPS**.
 
-Runtime (automated, 40 frames each, D3D11 debugLayer=yes):
+- 1920x1080: gpu_avg 0.1988 ms, cpu_avg 0.0025 ms → PASS (16.67 ms threshold)
+- 2560x1440: gpu_avg 0.3311 ms, cpu_avg 0.0025 ms → PASS
 
-```
-P0_Proof.exe --frames 40   -> frames=41, ~183.8 FPS, 5.44 ms, clean exit
-P1_Proof.exe --frames 40   -> frames=41, ~183.5 FPS, 5.45 ms, clean exit
-P1_Smoke.exe --frames 40   -> frames=41, ~183.2 FPS, 5.46 ms, clean exit
-```
-
-### P1 Exit Criteria status (per ROADMAP.md)
-
-Per the Owner ruling, ROADMAP / PHASE_GATE take precedence over
-`CURRENT_STATE.md`. As of this update both previously-open ROADMAP P1
-requirements have been implemented and verified within P1 scope:
-
-1. **device-lost / recreate path** — DONE (minimal).
-2. **material validation / resource lifetime tests** — DONE (`tests/p1_tests.cpp`).
-
-#### 1. Minimal device-lost / recreate contract (implemented)
-
-- `ErrorCode::DeviceLost` added; `Status::DeviceLost(hr)` preserves the HRESULT.
-- `IsDeviceLostHResult(hr)` classifies `DXGI_ERROR_DEVICE_REMOVED` and
-  `DXGI_ERROR_DEVICE_RESET`.
-- `GlassSurface::CheckDeviceLost()` reports `DeviceLost` / `DeviceError` /
-  `NotInitialized` / `Ok` based on `ID3D11Device::GetDeviceRemovedReason()`.
-- `GlassSurface::Render()` and `Resize()` fail fast with `DeviceLost` if the
-  device is already gone; `Create()` rejects an already-lost device.
-- `GlassSurface::CreateShadersAndResources()` / `CreateBlurTargets()` map
-  device-lost HRESULTs to `DeviceLost` (HRESULT preserved).
-- `D3D11Device::Present()` now returns the HRESULT unmodified (no longer
-  swallowed) and surfaces device removal; `D3D11Device::IsDeviceLost()` added.
-- Recovery model: host owns device creation. On loss the host calls
-  `GlassSurface::Reset()` (frees invalid GPU resources), creates a new
-  `ID3D11Device`, then `GlassSurface::Create()` again. Core does NOT
-  auto-recreate the device, spawn threads, retry, or run a recovery manager.
-
-Note: D3D11 exposes no programmatic device-removal API (no D3D11 equivalent of
-`ID3D12Device::RemoveDevice`), so the tests verify the observable contract and
-the Reset→Create→Render recovery path. Real hardware-removal stress testing is
-deferred to P2.
-
-#### 2. Automated tests (implemented)
-
-`tests/p1_tests.cpp` — minimal, no external framework, wired into CTest
-(`add_test(NAME P1_Tests ...)`). Covers:
-
-- A. GlassMaterial validation: legal range, boundaries, NaN, ±Inf, out-of-range
-  clamping, rejected setter leaves prior value unchanged, defaults valid.
-- B. Status / error semantics: Ok / InvalidArgument / DeviceError /
-  ResourceError / ShaderError / DeviceLost, HRESULT preservation,
-  `ErrorCodeToString`, `IsDeviceLostHResult`.
-- C. GlassSurface lifecycle: default/uninitialized, Create, Reset, Reset x2
-  idempotent, move construction, move assignment, moved-from safety,
-  Create-after-Reset.
-- D. Minimal device-lost / recreate contract + Reset→Create→Render recovery
-  with a fresh device.
-
-#### Verification actually executed (this update)
+### CTest results
 
 ```
-cmake --build build --config Debug
-  -> AuroraGlassCore.lib, P0_Proof.exe, P1_Proof.exe, P1_Smoke.exe, P1_Tests.exe
-
-ctest --test-dir build -C Debug
-  -> 1/1 Test #1: P1_Tests ... Passed   (95 checks, 0 failures)
-
-P0_Proof.exe --frames 40   -> clean exit, ~182.7 FPS
-P1_Proof.exe --frames 40   -> clean exit, ~182.1 FPS (resize path exercised)
-P1_Smoke.exe --frames 40   -> clean exit, ~183.1 FPS (resize path exercised)
+1/4 P1_Tests            Passed
+2/4 P2_Stress_Tests     Passed
+3/4 P2_Resize_Tests     Passed
+4/4 P2_ErrorPath_Tests  Passed
+100% tests passed out of 4
 ```
 
-P0 frozen baseline (`samples/p0_proof/main.cpp`) was NOT modified; its source
-mtime (2026-09-22 12:09:34) predates all P1 work.
+### API
 
-Full device-loss stress testing, multi-monitor/DPI, HDR and deep profiling
-remain P2 and were intentionally not started.
+`docs/P2_API_REVIEW.md` — no blocking flaw found; the frozen P1 public API is
+kept unchanged and recorded as **`v0.1-stable-candidate`** (`v0.1-stable-candidate`
+means P2 review complete and future changes default to non-breaking; it is NOT
+1.0, NOT a cross-platform ABI guarantee, and NOT a final approval of a later
+phase).
 
-### P1 non-goals (unchanged)
+### Known limitations (honest)
 
-Controls, WPF / WinUI 3 adapters, cross-platform, layout/text/MVVM,
-capture, D3D12/Vulkan/OpenGL/WebGPU, Rust bindings, premature abstractions.
-
----
-
-## Owner Final Approval
-
-Owner completed the P1 final review and approved P1 on 2026-09-22.
-
-- GlassMaterial stable value API: PASS
-- GlassSurface move-only / RAII: PASS
-- Device ownership (ComPtr held internally): PASS
-- Context / RTV / SRV borrowed per render call: PASS
-- SurfaceDesc does not expose shaderDir: PASS
-- DiagnosticStages separated from GlassMaterial: PASS
-- Status / HRESULT error model: PASS
-- Runtime smoke: PASS
-- P1 Proof: PASS
-- Owner Visual Parity: PASS
-- Device-lost / recreate minimal contract: PASS
-- P1 automated tests: 95 checks / 0 failures
-- P0 Golden Baseline: not modified
-- ROADMAP P1 Exit Criteria: all satisfied
-
-**P1 = APPROVED / FROZEN.**
-
-The P1 Core public API is now a frozen baseline. Future breaking changes to it
-require an explicit, documented reason (no silent modifications).
+- D3D11 has no programmatic device-removal API; real hardware removal was not
+  forced (only the classification helper + recovery path are tested).
+- Performance numbers are single-machine (Ryzen 9 7940HX / Radeon RX 7600 XT),
+  offscreen, and exclude Present/composition; not a general hardware claim.
+- "No application-owned D3D11 resource leak was observed" is scoped to the
+  report-time evidence above; it is not an absolute zero-object claim.
+- Forced shader-compile failure on a healthy device is not reliably triggerable
+  and is not faked.
 
 ## Completion Rule
 
-P1 is frozen. Next phase is P2 — Core Stabilization, which has NOT been started.
-The Owner instructs when P2 begins; the agent does not self-advance.
+P2 is frozen. Next phase is P3 — Controls, which has NOT been started. The Owner
+instructs when P3 begins; the agent does not self-advance.
