@@ -135,3 +135,19 @@ add_custom_command(TARGET P2_Bench POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P2_Bench>/shaders)
+
+# ------------------------------------------------------------
+# P3 Slice A — Controls geometry / state / input contract.
+# PURE CPU: no D3D, no dxgi, no d3dcompiler, no HWND, no Core dependency.
+# Deliberately a separate library so a GPU dependency cannot creep in.
+# ------------------------------------------------------------
+set(CONTROLS_SOURCES
+    src/controls/control_geometry.cpp
+    src/controls/control_interaction.cpp
+)
+add_library(AuroraGlassControls STATIC ${CONTROLS_SOURCES})
+target_include_directories(AuroraGlassControls PUBLIC src)
+
+add_executable(P3_Controls_Tests tests/p3_controls_tests.cpp)
+target_link_libraries(P3_Controls_Tests PRIVATE AuroraGlassControls)
+add_test(NAME P3_Controls_Tests COMMAND P3_Controls_Tests)
