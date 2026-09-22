@@ -64,7 +64,21 @@ bool D3D11Device::Init(HWND hwnd) {
     width = rc.right - rc.left;
     height = rc.bottom - rc.top;
 
-    Resize(width, height);
+    // Do not swallow the swap-chain resize result. A failure here means the
+    // device/backbuffer is not in a usable state, so Init must fail cleanly
+    // rather than leave a half-initialized object behind.
+    HRESULT resizeHr = Resize(width, height);
+    if (FAILED(resizeHr)) {
+        // Release everything so no half-initialized state survives.
+        rtv.Reset();
+        debugDevice.Reset();
+        context.Reset();
+        swapChain.Reset();
+        device.Reset();
+        width = height = 0;
+        debugLayerActive = false;
+        return false;
+    }
     return true;
 }
 

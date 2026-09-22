@@ -3,6 +3,7 @@
 #include "core/shader_library.h"
 
 #include <cstring>
+#include <Windows.h>   // OutputDebugStringA
 
 using Microsoft::WRL::ComPtr;
 
@@ -17,21 +18,26 @@ struct FrameCBData {
 }
 
 bool BackgroundSource::Init(ID3D11Device* device, ShaderLibrary& shaders) {
+    if (!device) return false;
+
     auto vsBlob = shaders.Compile(L"fullscreen_triangle.hlsl", "FullscreenVS", "vs_5_0");
     auto psBlob = shaders.Compile(L"background.hlsl", "BackgroundPS", "ps_5_0");
-    if (!vsBlob || !psBlob) return false;
+    if (!vsBlob || !psBlob) { Release(); return false; }
 
-    if (FAILED(device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(),
-                                          nullptr, &vs_))) return false;
-    if (FAILED(device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(),
-                                         nullptr, &ps_))) return false;
+    HRESULT hr = device->CreateVertexShader(vsBlob->GetBufferPointer(), vsBlob->GetBufferSize(),
+                                            nullptr, &vs_);
+    if (FAILED(hr)) { Release(); return false; }
+    hr = device->CreatePixelShader(psBlob->GetBufferPointer(), psBlob->GetBufferSize(),
+                                   nullptr, &ps_);
+    if (FAILED(hr)) { Release(); return false; }
 
     D3D11_BUFFER_DESC cbd{};
     cbd.ByteWidth = sizeof(FrameCBData);
     cbd.Usage = D3D11_USAGE_DYNAMIC;
     cbd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     cbd.CPUAccessFlags = D3D11_CPU_ACCESS_WRITE;
-    if (FAILED(device->CreateBuffer(&cbd, nullptr, &frameCB_))) return false;
+    hr = device->CreateBuffer(&cbd, nullptr, &frameCB_);
+    if (FAILED(hr)) { Release(); return false; }
 
     return true;
 }
@@ -43,6 +49,7 @@ void BackgroundSource::Release() {
 }
 
 bool BackgroundSource::Resize(ID3D11Device* device, uint32_t width, uint32_t height) {
+    if (!device) return false;
     if (width == 0 || height == 0) return false;
 
     srv_.Reset(); rtv_.Reset(); texture_.Reset();
@@ -57,9 +64,17 @@ bool BackgroundSource::Resize(ID3D11Device* device, uint32_t width, uint32_t hei
     td.Usage = D3D11_USAGE_DEFAULT;
     td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
 
-    if (FAILED(device->CreateTexture2D(&td, nullptr, &texture_))) return false;
-    if (FAILED(device->CreateRenderTargetView(texture_.Get(), nullptr, &rtv_))) return false;
-    if (FAILED(device->CreateShaderResourceView(texture_.Get(), nullptr, &srv_))) return false;
+    // On any failure, leave no stale resources and no size that does not match
+    // actual GPU resources (so TextureSRV()/Width()/Height() stay consistent).
+    if (FAILED(device->CreateTexture2D(&td, nullptr, &texture_))) {
+        width_ = height_ = 0; return false;
+    }
+    if (FAILED(device->CreateRenderTargetView(texture_.Get(), nullptr, &rtv_))) {
+        srv_.Reset(); rtv_.Reset(); texture_.Reset(); width_ = height_ = 0; return false;
+    }
+    if (FAILED(device->CreateShaderResourceView(texture_.Get(), nullptr, &srv_))) {
+        srv_.Reset(); rtv_.Reset(); texture_.Reset(); width_ = height_ = 0; return false;
+    }
 
     width_ = width;
     height_ = height;
@@ -68,16 +83,24 @@ bool BackgroundSource::Resize(ID3D11Device* device, uint32_t width, uint32_t hei
 
 void BackgroundSource::Render(ID3D11DeviceContext* ctx, float timeSeconds) {
     if (!texture_) return;
+    if (!ctx || !frameCB_ || !vs_ || !ps_ || !rtv_) return;
 
     FrameCBData cb{};
     cb.resolution[0] = static_cast<float>(width_);
     cb.resolution[1] = static_cast<float>(height_);
     cb.time[0] = timeSeconds;
     D3D11_MAPPED_SUBRESOURCE mapped{};
-    if (SUCCEEDED(ctx->Map(frameCB_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped))) {
-        memcpy(mapped.pData, &cb, sizeof(cb));
-        ctx->Unmap(frameCB_.Get(), 0);
+    HRESULT mapHr = ctx->Map(frameCB_.Get(), 0, D3D11_MAP_WRITE_DISCARD, 0, &mapped);
+    if (FAILED(mapHr)) {
+        // Do not draw with a stale/garbage constant buffer. BackgroundSource is
+        // sample/P0 support (no HRESULT return path is introduced, to avoid
+        // disturbing the frozen P0 baseline); surface the failure to the
+        // debugger instead of silently skipping.
+        OutputDebugStringA("[AuroraGlass] BackgroundSource::Render Map failed\n");
+        return;
     }
+    memcpy(mapped.pData, &cb, sizeof(cb));
+    ctx->Unmap(frameCB_.Get(), 0);
 
     ctx->OMSetRenderTargets(1, rtv_.GetAddressOf(), nullptr);
 

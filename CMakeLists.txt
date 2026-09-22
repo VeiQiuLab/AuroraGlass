@@ -87,6 +87,17 @@ add_custom_command(TARGET P2_Resize_Tests POST_BUILD
 add_test(NAME P2_Resize_Tests COMMAND P2_Resize_Tests)
 
 # ------------------------------------------------------------
+# P2 Slice 5 — error-path coverage (tests/ only).
+# ------------------------------------------------------------
+add_executable(P2_ErrorPath_Tests tests/p2_errorpath_tests.cpp)
+target_link_libraries(P2_ErrorPath_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+add_custom_command(TARGET P2_ErrorPath_Tests POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P2_ErrorPath_Tests>/shaders)
+add_test(NAME P2_ErrorPath_Tests COMMAND P2_ErrorPath_Tests)
+
+# ------------------------------------------------------------
 # P2 Slice 2 — resize/minimize/restore diagnostic host (new sample;
 # does not modify frozen p0_proof / p1_smoke / p1_proof / p1_tests).
 # ------------------------------------------------------------
