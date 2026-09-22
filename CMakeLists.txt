@@ -98,6 +98,12 @@ add_custom_command(TARGET P2_ErrorPath_Tests POST_BUILD
 add_test(NAME P2_ErrorPath_Tests COMMAND P2_ErrorPath_Tests)
 
 # ------------------------------------------------------------
+# P2 diagnostic tool — DebugView-style OutputDebugString capture
+# (used to inspect ReportLiveDeviceObjects output; not a sample).
+# ------------------------------------------------------------
+add_executable(P2_LiveObject_Capture tests/liveobject_capture.cpp)
+
+# ------------------------------------------------------------
 # P2 Slice 2 — resize/minimize/restore diagnostic host (new sample;
 # does not modify frozen p0_proof / p1_smoke / p1_proof / p1_tests).
 # ------------------------------------------------------------

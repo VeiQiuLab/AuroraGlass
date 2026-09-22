@@ -145,9 +145,9 @@ void D3D11Device::Clear(float r, float g, float b, float a) {
     }
 }
 
-void D3D11Device::ReportLiveObjects() {
+void D3D11Device::ReportLiveObjects(D3D11_RLDO_FLAGS flags) {
     if (debugDevice) {
-        debugDevice->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+        debugDevice->ReportLiveDeviceObjects(flags);
     }
 }
 

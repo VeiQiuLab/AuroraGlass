@@ -1,6 +1,7 @@
 
 #pragma once
 #include <d3d11.h>
+#include <d3d11sdklayers.h>   // D3D11_RLDO_FLAGS
 #include <dxgi.h>
 #include <wrl/client.h>
 #include <cstdint>
@@ -29,7 +30,21 @@ struct D3D11Device {
     // Returns true if the device has been removed or reset.
     bool IsDeviceLost() const;
     // Report live device objects (debug layer) for leak diagnosis on shutdown.
-    void ReportLiveObjects();
+    //
+    // Default flags: D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL.
+    //
+    // Rationale: a valid ID3D11Debug must be kept alive to run the report, and
+    // that keeps the ID3D11Device alive. The device and its runtime-internal
+    // objects (context, device-context state, default blend/depth/rasterizer/
+    // sampler states, an internal query, the swap chain, back-buffer textures
+    // and the back-buffer RTV) therefore always appear at report time. Every
+    // one of them has NO external COM reference (Refcount 0) at that point —
+    // they are runtime-internal, not application leaks. IGNORE_INTERNAL filters
+    // exactly those, while a real application leak (which still holds an
+    // external reference) is still reported. Pass D3D11_RLDO_DETAIL alone to
+    // see the full internal detail.
+    void ReportLiveObjects(
+        D3D11_RLDO_FLAGS flags = D3D11_RLDO_DETAIL | D3D11_RLDO_IGNORE_INTERNAL);
 };
 
 }
