@@ -176,6 +176,17 @@ add_custom_command(TARGET P3_Batch_Tests POST_BUILD
         $<TARGET_FILE_DIR:P3_Batch_Tests>/shaders)
 add_test(NAME P3_Batch_Tests COMMAND P3_Batch_Tests)
 
+# P3 Slice D - interactive control semantics (pure CPU; links Controls only).
+add_executable(P3_Interactive_Tests tests/p3_interactive_tests.cpp)
+target_link_libraries(P3_Interactive_Tests PRIVATE AuroraGlassControls)
+add_test(NAME P3_Interactive_Tests COMMAND P3_Interactive_Tests)
+
+# P3 Slice D - sample-only drag helper tests (pure CPU).
+add_executable(P3_Drag_Helper_Tests tests/p3_drag_helper_tests.cpp)
+target_include_directories(P3_Drag_Helper_Tests PRIVATE samples/p3_interactive_smoke)
+target_link_libraries(P3_Drag_Helper_Tests PRIVATE AuroraGlassControls)
+add_test(NAME P3_Drag_Helper_Tests COMMAND P3_Drag_Helper_Tests)
+
 # P3 Slice C — multi-control visual sample (new; frozen baselines untouched).
 add_executable(P3_Controls_Smoke samples/p3_controls_smoke/main.cpp)
 target_link_libraries(P3_Controls_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
