@@ -1,0 +1,23 @@
+# Build output
+build/
+out/
+bin/
+obj/
+.vs/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+
+# IDE/user files
+*.user
+*.suo
+*.VC.db
+*.VC.VC.opendb
+
+# Logs / captures
+*.log
+captures/
+
+# OS
+Thumbs.db
+Desktop.ini
