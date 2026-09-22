@@ -96,3 +96,14 @@ add_custom_command(TARGET P2_Resize_Smoke POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P2_Resize_Smoke>/shaders)
+
+# ------------------------------------------------------------
+# P2 Slice 3 — DPI / multi-monitor validation host (host-only; DPI never
+# enters Core). New sample; frozen baselines untouched.
+# ------------------------------------------------------------
+add_executable(P2_Dpi_Smoke samples/p2_dpi_smoke/main.cpp)
+target_link_libraries(P2_Dpi_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
+add_custom_command(TARGET P2_Dpi_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P2_Dpi_Smoke>/shaders)
