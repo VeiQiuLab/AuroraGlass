@@ -49,6 +49,29 @@ AURORAGLASS_WPF_HOST_API int32_t
 AuroraGlassWpfHostIsAttached(
     const AuroraGlassWpfHostAttachment* host) AURORAGLASS_WPF_HOST_NOEXCEPT;
 
+
+typedef struct AuroraGlassWpfHostMetrics {
+    uint32_t client_width;
+    uint32_t client_height;
+    uint32_t dpi;
+} AuroraGlassWpfHostMetrics;
+
+typedef void (*AuroraGlassWpfHostMetricsCallback)(
+    const AuroraGlassWpfHostMetrics* metrics,
+    void* user_data);
+
+AURORAGLASS_WPF_HOST_API int32_t
+AuroraGlassWpfHostGetMetrics(
+    const AuroraGlassWpfHostAttachment* host,
+    AuroraGlassWpfHostMetrics* metrics)
+    AURORAGLASS_WPF_HOST_NOEXCEPT;
+
+AURORAGLASS_WPF_HOST_API int32_t
+AuroraGlassWpfHostSetMetricsCallback(
+    AuroraGlassWpfHostAttachment* host,
+    AuroraGlassWpfHostMetricsCallback callback,
+    void* user_data)
+    AURORAGLASS_WPF_HOST_NOEXCEPT;
 #if defined(__cplusplus)
     }
 #endif
