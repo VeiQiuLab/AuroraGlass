@@ -78,12 +78,32 @@ ButtonMotion::ButtonMotion() noexcept {
     presentation_.response = response_.Value();
 }
 
+void ButtonMotion::SetReducedMotion(bool enabled) noexcept {
+    reducedMotion_ = enabled;
+
+    if (!reducedMotion_) {
+        return;
+    }
+
+    scale_.Snap(scaleTarget_);
+    response_.Snap(responseTarget_);
+
+    presentation_.scale = scale_.Value();
+    presentation_.response = response_.Value();
+}
+
 void ButtonMotion::RetargetScale(float target) noexcept {
     if (target == scaleTarget_) {
         return;
     }
 
     scaleTarget_ = target;
+
+    if (reducedMotion_) {
+        scale_.Snap(target);
+        presentation_.scale = scale_.Value();
+        return;
+    }
 
     // Button press/release must reverse immediately when semantic input changes.
     // Tween retarget starts from the CURRENT presentation value, so there is no
@@ -100,6 +120,13 @@ void ButtonMotion::RetargetResponse(float target) noexcept {
     }
 
     responseTarget_ = target;
+
+    if (reducedMotion_) {
+        response_.Snap(target);
+        presentation_.response = response_.Value();
+        return;
+    }
+
     response_.Retarget(
         target,
         kButtonResponseTweenSeconds,
@@ -126,6 +153,17 @@ ToggleMotion::ToggleMotion(bool checked) noexcept {
     presentation_.progress = value;
 }
 
+void ToggleMotion::SetReducedMotion(bool enabled) noexcept {
+    reducedMotion_ = enabled;
+
+    if (!reducedMotion_) {
+        return;
+    }
+
+    progress_.Snap(progressTarget_);
+    presentation_.progress = progress_.Value();
+}
+
 void ToggleMotion::Sync(bool checked) noexcept {
     const float target = checked ? 1.0f : 0.0f;
 
@@ -134,6 +172,12 @@ void ToggleMotion::Sync(bool checked) noexcept {
     }
 
     progressTarget_ = target;
+
+    if (reducedMotion_) {
+        progress_.Snap(target);
+        presentation_.progress = progress_.Value();
+        return;
+    }
 
     progress_.Retarget(
         target,
@@ -151,21 +195,52 @@ LightFollowMotion::LightFollowMotion() noexcept {
     presentation_.y = y_.Value();
 }
 
+void LightFollowMotion::SetReducedMotion(bool enabled) noexcept {
+    reducedMotion_ = enabled;
+
+    if (!reducedMotion_) {
+        return;
+    }
+
+    x_.Snap(targetX_);
+    y_.Snap(targetY_);
+
+    presentation_.x = x_.Value();
+    presentation_.y = y_.Value();
+}
+
 void LightFollowMotion::Retarget(float x, float y) noexcept {
     if (x != targetX_) {
         targetX_ = x;
-        x_.Retarget(
-            targetX_,
-            kLightFollowSeconds,
-            TweenCurve::SmoothStep);
+
+        if (reducedMotion_) {
+            x_.Snap(targetX_);
+        }
+        else {
+            x_.Retarget(
+                targetX_,
+                kLightFollowSeconds,
+                TweenCurve::SmoothStep);
+        }
     }
 
     if (y != targetY_) {
         targetY_ = y;
-        y_.Retarget(
-            targetY_,
-            kLightFollowSeconds,
-            TweenCurve::SmoothStep);
+
+        if (reducedMotion_) {
+            y_.Snap(targetY_);
+        }
+        else {
+            y_.Retarget(
+                targetY_,
+                kLightFollowSeconds,
+                TweenCurve::SmoothStep);
+        }
+    }
+
+    if (reducedMotion_) {
+        presentation_.x = x_.Value();
+        presentation_.y = y_.Value();
     }
 }
 
@@ -215,6 +290,18 @@ SliderMotion::SliderMotion() noexcept {
     presentation_.thumbSizePx = thumbSize_.Value();
 }
 
+void SliderMotion::SetReducedMotion(bool enabled) noexcept {
+    reducedMotion_ = enabled;
+
+    if (!reducedMotion_) {
+        return;
+    }
+
+    // Spring1D::Snap also clears residual velocity.
+    thumbSize_.Snap(thumbTarget_);
+    presentation_.thumbSizePx = thumbSize_.Value();
+}
+
 void SliderMotion::Sync(ControlInteractionState state) noexcept {
     const float target = SliderThumbTarget(state);
 
@@ -223,6 +310,13 @@ void SliderMotion::Sync(ControlInteractionState state) noexcept {
     }
 
     thumbTarget_ = target;
+
+    if (reducedMotion_) {
+        thumbSize_.Snap(target);
+        presentation_.thumbSizePx = thumbSize_.Value();
+        return;
+    }
+
     thumbSize_.SetTarget(target);
 }
 

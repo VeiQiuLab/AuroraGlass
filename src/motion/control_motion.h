@@ -25,6 +25,7 @@ class ButtonMotion {
 public:
     ButtonMotion() noexcept;
 
+    void SetReducedMotion(bool enabled) noexcept;
     void Sync(ControlInteractionState state) noexcept;
     void Step(float deltaSeconds) noexcept;
 
@@ -42,6 +43,7 @@ private:
     float scaleTarget_ = 1.0f;
     float responseTarget_ = 0.0f;
 
+    bool reducedMotion_ = false;
     ButtonPresentation presentation_{};
 };
 
@@ -53,6 +55,8 @@ class ToggleMotion {
 public:
     ToggleMotion() noexcept = default;
     explicit ToggleMotion(bool checked) noexcept;
+
+    void SetReducedMotion(bool enabled) noexcept;
 
     // Semantic checked state changes immediately in GlassToggle.
     // This only retargets the visual progress from its CURRENT value.
@@ -66,6 +70,7 @@ public:
 private:
     Tween1D progress_{0.0f};
     float progressTarget_ = 0.0f;
+    bool reducedMotion_ = false;
     TogglePresentation presentation_{};
 };
 
@@ -79,6 +84,8 @@ struct LightFollowPresentation {
 class LightFollowMotion {
 public:
     LightFollowMotion() noexcept;
+
+    void SetReducedMotion(bool enabled) noexcept;
 
     // Host-owned pointer position is projected into control-local normalized
     // coordinates. This does not perform input dispatch or mutate semantics.
@@ -105,6 +112,7 @@ private:
     float targetX_ = 0.50f;
     float targetY_ = 0.35f;
 
+    bool reducedMotion_ = false;
     LightFollowPresentation presentation_{};
 };
 
@@ -115,6 +123,8 @@ struct SliderPresentation {
 class SliderMotion {
 public:
     SliderMotion() noexcept;
+
+    void SetReducedMotion(bool enabled) noexcept;
 
     // Slider semantic value is deliberately absent from this API.
     // The real GlassSlider remains pointer-driven with zero animation latency.
@@ -128,6 +138,7 @@ public:
 private:
     Spring1D thumbSize_{18.0f};
     float thumbTarget_ = 18.0f;
+    bool reducedMotion_ = false;
     SliderPresentation presentation_{};
 };
 

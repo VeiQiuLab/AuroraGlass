@@ -76,6 +76,12 @@ static float g_Time = 0.0f;
 static int g_ScriptFrame = 0;
 static int g_RuntimeFailures = 0;
 
+// Scripted evidence for the authoritative P4 reduced-motion capability.
+static bool g_SawReducedMidFlightSnap = false;
+static bool g_SawReducedImmediateRetarget = false;
+static bool g_SawReducedDisableStable = false;
+static bool g_SawReducedNormalResume = false;
+
 static bool g_SawButtonRapid = false;
 static bool g_SawToggleRapid = false;
 static bool g_SawSliderDrag = false;
@@ -966,6 +972,19 @@ static ControlBounds ScaleAboutCenter(
     };
 }
 
+static void SetReducedMotionForPresentation(
+    bool enabled) noexcept
+{
+    // Sample host policy wiring only. Production motion bindings own the
+    // presentation response; P3 semantics remain completely unaware.
+    g_ButtonMotion.SetReducedMotion(enabled);
+    g_ToggleMotion.SetReducedMotion(enabled);
+    g_SliderMotion.SetReducedMotion(enabled);
+
+    g_ButtonLight.SetReducedMotion(enabled);
+    g_ToggleLight.SetReducedMotion(enabled);
+    g_SliderLight.SetReducedMotion(enabled);
+}
 static void AdvanceMotion(float dt)
 {
     g_ButtonMotion.Sync(g_Button.State());
@@ -1734,6 +1753,399 @@ static void RunScriptedInput()
         break;
     }
 
+    // ------------------------------------------------------------
+    // Reduced-motion runtime capability.
+    //
+    // Frames 124-125 first establish real in-flight presentation motion.
+    // Frame 126 enables reduced motion while those animations are active.
+    // ------------------------------------------------------------
+    case 124:
+    {
+        ControlPoint sliderPoint{
+            g_Slider.ThumbCenterX(),
+            sliderY
+        };
+
+        ControlPoint left{
+            g_Button.bounds.x +
+                g_Button.bounds.width * 0.15f,
+            button.y
+        };
+
+        // Establish four independent normal-mode targets.
+        g_Button.PointerMove(button);
+        g_Toggle.SetChecked(false);
+        g_Slider.PointerDown(sliderPoint);
+        g_ButtonLight.RetargetPointer(
+            left,
+            g_Button.bounds);
+
+        g_ButtonMotion.Sync(
+            g_Button.State());
+
+        g_ToggleMotion.Sync(
+            g_Toggle.IsChecked());
+
+        g_SliderMotion.Sync(
+            g_Slider.State());
+
+        Evidence("reduced-preflight-normal-start");
+        break;
+    }
+
+    case 126:
+    {
+        // Prove these paths are actually in-flight before policy changes.
+        RuntimeCheck(
+            g_ButtonMotion.Presentation().scale > 1.0f &&
+            g_ButtonMotion.Presentation().scale < 1.010f,
+            "reduced preflight button was not mid-flight");
+
+        RuntimeCheck(
+            g_ToggleMotion.Presentation().progress > 0.0f &&
+            g_ToggleMotion.Presentation().progress < 1.0f,
+            "reduced preflight toggle was not mid-flight");
+
+        RuntimeCheck(
+            g_SliderMotion.Presentation().thumbSizePx > 19.5f &&
+            g_SliderMotion.Presentation().thumbSizePx < 23.0f,
+            "reduced preflight slider was not mid-flight");
+
+        RuntimeCheck(
+            g_ButtonLight.Presentation().x > -0.701f &&
+            g_ButtonLight.Presentation().x < 0.499f,
+            "reduced preflight light was not mid-flight");
+
+        SetReducedMotionForPresentation(true);
+
+        // SetReducedMotion(true) must settle in THIS CALL.
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().scale,
+                1.010f,
+                0.000001f),
+            "reduced mid-flight button did not snap");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().response,
+                0.35f,
+                0.000001f),
+            "reduced mid-flight button response did not snap");
+
+        RuntimeCheck(
+            Near(
+                g_ToggleMotion.Presentation().progress,
+                0.0f,
+                0.000001f),
+            "reduced mid-flight toggle did not snap");
+
+        RuntimeCheck(
+            Near(
+                g_SliderMotion.Presentation().thumbSizePx,
+                23.0f,
+                0.000001f),
+            "reduced mid-flight slider did not snap");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                -0.70f,
+                0.001f),
+            "reduced mid-flight light x did not snap");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().y,
+                0.0f,
+                0.001f),
+            "reduced mid-flight light y did not snap");
+
+        // P3 semantic truth is unchanged by presentation policy.
+        RuntimeCheck(
+            !g_Toggle.IsChecked(),
+            "reduced motion changed P3 toggle semantic truth");
+
+        g_SawReducedMidFlightSnap = true;
+        Evidence("reduced-mid-flight-enable");
+        break;
+    }
+
+    case 128:
+    {
+        ControlPoint sliderPoint{
+            g_Slider.ThumbCenterX(),
+            sliderY
+        };
+
+        ControlPoint right{
+            g_Button.bounds.x +
+                g_Button.bounds.width * 0.85f,
+            button.y
+        };
+
+        // While reduced motion remains enabled, every new target must
+        // settle synchronously with no temporal interpolation.
+        g_Button.PointerDown(button);
+        g_ButtonMotion.Sync(
+            g_Button.State());
+
+        g_Toggle.SetChecked(true);
+        g_ToggleMotion.Sync(
+            g_Toggle.IsChecked());
+
+        g_Slider.PointerUp(sliderPoint);
+        g_SliderMotion.Sync(
+            g_Slider.State());
+
+        g_ButtonLight.RetargetPointer(
+            right,
+            g_Button.bounds);
+
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().scale,
+                0.970f,
+                0.000001f),
+            "reduced button new target was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().response,
+                1.0f,
+                0.000001f),
+            "reduced button response new target was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_ToggleMotion.Presentation().progress,
+                1.0f,
+                0.000001f),
+            "reduced toggle new target was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_SliderMotion.Presentation().thumbSizePx,
+                19.5f,
+                0.000001f),
+            "reduced slider new target was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                0.70f,
+                0.001f),
+            "reduced light new pointer target was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().y,
+                0.0f,
+                0.001f),
+            "reduced light new pointer y was not immediate");
+
+        g_ButtonLight.RetargetRest();
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                0.50f,
+                0.000001f),
+            "reduced light leave/rest x was not immediate");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().y,
+                0.35f,
+                0.000001f),
+            "reduced light leave/rest y was not immediate");
+
+        // Leave it at another immediate target for the disable-stability check.
+        g_ButtonLight.RetargetPointer(
+            right,
+            g_Button.bounds);
+
+        g_SawReducedImmediateRetarget = true;
+        Evidence("reduced-immediate-retarget");
+        break;
+    }
+
+    case 130:
+    {
+        const float buttonBefore =
+            g_ButtonMotion.Presentation().scale;
+
+        const float toggleBefore =
+            g_ToggleMotion.Presentation().progress;
+
+        const float sliderBefore =
+            g_SliderMotion.Presentation().thumbSizePx;
+
+        const float lightBefore =
+            g_ButtonLight.Presentation().x;
+
+        SetReducedMotionForPresentation(false);
+
+        // Disabling reduced motion itself must be presentation-neutral.
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().scale,
+                buttonBefore,
+                0.000001f),
+            "disabling reduced motion moved button");
+
+        RuntimeCheck(
+            Near(
+                g_ToggleMotion.Presentation().progress,
+                toggleBefore,
+                0.000001f),
+            "disabling reduced motion moved toggle");
+
+        RuntimeCheck(
+            Near(
+                g_SliderMotion.Presentation().thumbSizePx,
+                sliderBefore,
+                0.000001f),
+            "disabling reduced motion moved slider");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                lightBefore,
+                0.000001f),
+            "disabling reduced motion moved light");
+
+        Evidence("reduced-disabled");
+        break;
+    }
+
+    case 131:
+        // One complete normal Step(dt) has elapsed since disabling.
+        // No stale tween trajectory or spring velocity may resurrect.
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().scale,
+                0.970f,
+                0.000001f),
+            "button resurrected stale motion after disable");
+
+        RuntimeCheck(
+            Near(
+                g_ToggleMotion.Presentation().progress,
+                1.0f,
+                0.000001f),
+            "toggle resurrected stale motion after disable");
+
+        RuntimeCheck(
+            Near(
+                g_SliderMotion.Presentation().thumbSizePx,
+                19.5f,
+                0.000001f),
+            "slider resurrected stale velocity after disable");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                0.70f,
+                0.001f),
+            "light resurrected stale tween after disable");
+
+        g_SawReducedDisableStable = true;
+        Evidence("reduced-disable-stable");
+        break;
+
+    case 132:
+    {
+        ControlPoint sliderPoint{
+            g_Slider.ThumbCenterX(),
+            sliderY
+        };
+
+        const float buttonBefore =
+            g_ButtonMotion.Presentation().scale;
+
+        const float toggleBefore =
+            g_ToggleMotion.Presentation().progress;
+
+        const float sliderBefore =
+            g_SliderMotion.Presentation().thumbSizePx;
+
+        const float lightBefore =
+            g_ButtonLight.Presentation().x;
+
+        // New input after reduced motion is disabled must resume the existing
+        // normal P4 animation paths, not snap.
+        g_Button.PointerUp(button);
+        g_ButtonMotion.Sync(
+            g_Button.State());
+
+        g_Toggle.SetChecked(false);
+        g_ToggleMotion.Sync(
+            g_Toggle.IsChecked());
+
+        g_Slider.PointerDown(sliderPoint);
+        g_SliderMotion.Sync(
+            g_Slider.State());
+
+        g_ButtonLight.RetargetRest();
+
+        RuntimeCheck(
+            Near(
+                g_ButtonMotion.Presentation().scale,
+                buttonBefore,
+                0.000001f),
+            "normal button retarget snapped after reduced disable");
+
+        RuntimeCheck(
+            Near(
+                g_ToggleMotion.Presentation().progress,
+                toggleBefore,
+                0.000001f),
+            "normal toggle retarget snapped after reduced disable");
+
+        RuntimeCheck(
+            Near(
+                g_SliderMotion.Presentation().thumbSizePx,
+                sliderBefore,
+                0.000001f),
+            "normal slider retarget snapped after reduced disable");
+
+        RuntimeCheck(
+            Near(
+                g_ButtonLight.Presentation().x,
+                lightBefore,
+                0.000001f),
+            "normal light retarget snapped after reduced disable");
+
+        Evidence("reduced-normal-resume-input");
+        break;
+    }
+
+    case 133:
+        // Frame 132 AdvanceMotion has now stepped once in normal mode.
+        RuntimeCheck(
+            g_ButtonMotion.Presentation().scale > 0.970f &&
+            g_ButtonMotion.Presentation().scale < 1.010f,
+            "button normal animation did not resume");
+
+        RuntimeCheck(
+            g_ToggleMotion.Presentation().progress > 0.0f &&
+            g_ToggleMotion.Presentation().progress < 1.0f,
+            "toggle normal animation did not resume");
+
+        RuntimeCheck(
+            g_SliderMotion.Presentation().thumbSizePx > 19.5f &&
+            g_SliderMotion.Presentation().thumbSizePx < 23.0f,
+            "slider normal animation did not resume");
+
+        RuntimeCheck(
+            g_ButtonLight.Presentation().x > 0.50f &&
+            g_ButtonLight.Presentation().x < 0.70f,
+            "light normal animation did not resume");
+
+        g_SawReducedNormalResume = true;
+        Evidence("reduced-normal-resumed");
+        break;
     case 145:
         SetWindowPos(
             g_Window,
@@ -2216,6 +2628,30 @@ int main(int argc, char** argv)
         RuntimeCheck(
             g_SawResize,
             "resize path not executed");
+
+        RuntimeCheck(
+            g_SawReducedMidFlightSnap,
+            "reduced-motion mid-flight snap path not executed");
+
+        RuntimeCheck(
+            g_SawReducedImmediateRetarget,
+            "reduced-motion immediate retarget path not executed");
+
+        RuntimeCheck(
+            g_SawReducedDisableStable,
+            "reduced-motion disable stability path not executed");
+
+        RuntimeCheck(
+            g_SawReducedNormalResume,
+            "normal motion did not resume after reduced-motion disable");
+
+        std::printf(
+            "[p4-motion] reduced summary: "
+            "midFlight=%d immediate=%d disableStable=%d resume=%d\n",
+            g_SawReducedMidFlightSnap ? 1 : 0,
+            g_SawReducedImmediateRetarget ? 1 : 0,
+            g_SawReducedDisableStable ? 1 : 0,
+            g_SawReducedNormalResume ? 1 : 0);
 
         std::printf(
             "[p4-motion] scripted summary: "

@@ -289,3 +289,18 @@ add_test(
     NAME P4_Light_Follow_Tests
     COMMAND P4_Light_Follow_Tests
 )
+
+# P4 reduced-motion focused deterministic coverage.
+add_executable(P4_Reduced_Motion_Tests
+    tests/p4_reduced_motion_tests.cpp
+)
+
+target_link_libraries(P4_Reduced_Motion_Tests PRIVATE
+    AuroraGlassMotionControls
+    AuroraGlassControls
+)
+
+add_test(
+    NAME P4_Reduced_Motion_Tests
+    COMMAND P4_Reduced_Motion_Tests
+)
