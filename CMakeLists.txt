@@ -220,3 +220,15 @@ add_custom_command(TARGET P3_Reuse_Smoke POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P3_Reuse_Smoke>/shaders)
+
+# P4 Slice A - optional CPU-only motion primitives.
+# No dependency on Core, Controls, D3D, HWND, or host-framework services.
+add_library(AuroraGlassMotion STATIC
+    src/motion/motion.cpp
+)
+target_include_directories(AuroraGlassMotion PUBLIC src)
+target_compile_features(AuroraGlassMotion PUBLIC cxx_std_20)
+
+add_executable(P4_Motion_Tests tests/p4_motion_tests.cpp)
+target_link_libraries(P4_Motion_Tests PRIVATE AuroraGlassMotion)
+add_test(NAME P4_Motion_Tests COMMAND P4_Motion_Tests)
