@@ -489,3 +489,40 @@ target_sources(AuroraGlassWpfInterop PRIVATE
 target_link_libraries(AuroraGlassWpfInterop PRIVATE
     AuroraGlassCore
 )
+
+# P7 Slice A - WinUI 3 interop baseline.
+# WinUI owns the HWND. This narrow ABI directly reuses the frozen
+# P5 Win32HostAttachment production lifecycle without modifying P6.
+add_library(AuroraGlassWinUIInterop SHARED
+    adapters/winui/winui_host_bridge.cpp
+)
+
+target_include_directories(AuroraGlassWinUIInterop PUBLIC
+    adapters
+)
+
+target_compile_features(AuroraGlassWinUIInterop PUBLIC
+    cxx_std_20
+)
+
+target_compile_definitions(AuroraGlassWinUIInterop PRIVATE
+    AURORAGLASS_WINUI_INTEROP_EXPORTS
+)
+
+target_link_libraries(AuroraGlassWinUIInterop PRIVATE
+    AuroraGlassWin32Adapter
+)
+
+add_executable(P7_WinUI_Interop_Tests
+    tests/p7_winui_interop_tests.cpp
+)
+
+target_link_libraries(P7_WinUI_Interop_Tests PRIVATE
+    AuroraGlassWinUIInterop
+    user32
+)
+
+add_test(
+    NAME P7_WinUI_Interop_Tests
+    COMMAND P7_WinUI_Interop_Tests
+)
