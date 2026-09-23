@@ -212,3 +212,11 @@ add_custom_command(TARGET P3_Controls_Smoke POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/samples/p3_controls_smoke/shaders
         $<TARGET_FILE_DIR:P3_Controls_Smoke>/shaders)
+
+# P3 Slice E - independent Win32 consumer reusability proof.
+add_executable(P3_Reuse_Smoke samples/p3_reuse_smoke/main.cpp)
+target_link_libraries(P3_Reuse_Smoke PRIVATE AuroraGlassCore AuroraGlassControls d3d11 dxgi d3dcompiler gdi32)
+add_custom_command(TARGET P3_Reuse_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P3_Reuse_Smoke>/shaders)
