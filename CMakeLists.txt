@@ -526,3 +526,23 @@ add_test(
     NAME P7_WinUI_Interop_Tests
     COMMAND P7_WinUI_Interop_Tests
 )
+# P7 Slice B - WinUI 3 DPI, resize, and input behavior.
+# Reuses frozen P5 Win32HostAttachment / Win32HostMetrics and
+# Win32ControlInputBridge. Control semantics remain frozen P3.
+target_sources(AuroraGlassWinUIInterop PRIVATE
+    adapters/winui/winui_control_input_bridge.cpp
+)
+
+add_executable(P7_WinUI_Metrics_Input_Tests
+    tests/p7_winui_metrics_input_tests.cpp
+)
+
+target_link_libraries(P7_WinUI_Metrics_Input_Tests PRIVATE
+    AuroraGlassWinUIInterop
+    user32
+)
+
+add_test(
+    NAME P7_WinUI_Metrics_Input_Tests
+    COMMAND P7_WinUI_Metrics_Input_Tests
+)
