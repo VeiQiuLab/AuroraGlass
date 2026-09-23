@@ -1,0 +1,18 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>P6.WpfSample</AssemblyName>
+    <RootNamespace>P6.WpfSample</RootNamespace>
+    <StartupObject>P6.WpfSample.Program</StartupObject>
+    <BaseOutputPath>../../build/managed/P6.WpfSample/bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>../../build/managed/P6.WpfSample/obj/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="../../adapters/wpf/AuroraGlass.Wpf/AuroraGlass.Wpf.csproj" />
+  </ItemGroup>
+</Project>
