@@ -69,6 +69,45 @@ private:
     TogglePresentation presentation_{};
 };
 
+struct LightFollowPresentation {
+    // Same normalized highlight coordinate contract as GlassMaterial:
+    // [-1, 1] on each axis. This type does not depend on GlassMaterial.
+    float x = 0.50f;
+    float y = 0.35f;
+};
+
+class LightFollowMotion {
+public:
+    LightFollowMotion() noexcept;
+
+    // Host-owned pointer position is projected into control-local normalized
+    // coordinates. This does not perform input dispatch or mutate semantics.
+    void RetargetPointer(
+        ControlPoint pointer,
+        const ControlBounds& bounds) noexcept;
+
+    // Pointer ownership/lifetime remains with the host. On leave, presentation
+    // returns to the existing GlassMaterial default highlight position.
+    void RetargetRest() noexcept;
+
+    void Step(float deltaSeconds) noexcept;
+
+    const LightFollowPresentation& Presentation() const noexcept {
+        return presentation_;
+    }
+
+private:
+    void Retarget(float x, float y) noexcept;
+
+    Tween1D x_{0.50f};
+    Tween1D y_{0.35f};
+
+    float targetX_ = 0.50f;
+    float targetY_ = 0.35f;
+
+    LightFollowPresentation presentation_{};
+};
+
 struct SliderPresentation {
     float thumbSizePx = 18.0f;
 };

@@ -43,6 +43,22 @@ static ButtonMotion g_ButtonMotion;
 static ToggleMotion g_ToggleMotion(false);
 static SliderMotion g_SliderMotion;
 
+static LightFollowMotion g_ButtonLight;
+static LightFollowMotion g_ToggleLight;
+static LightFollowMotion g_SliderLight;
+
+// Sample-only direct-manipulation prototype for GlassToggle.
+//
+// P3 remains authoritative for the checked semantic value. The host owns
+// pointer capture and drag interpretation. This Tween1D exists only so a
+// released drag can settle from the exact pointer-driven presentation value.
+static Tween1D g_ToggleDragVisual{0.0f};
+static bool g_ToggleDragArmed = false;
+static bool g_ToggleDragMoved = false;
+static bool g_ToggleDragSettling = false;
+static float g_ToggleDragStartX = 0.0f;
+static float g_ToggleDragPointerOffset = 0.0f;
+
 static GlassMaterial g_ControlMaterial;
 static GlassMaterial g_TrackMaterial;
 static GlassMaterial g_FillMaterial;
@@ -66,6 +82,8 @@ static bool g_SawSliderDrag = false;
 static bool g_SawResize = false;
 
 static HWND g_Window = nullptr;
+
+
 
 static bool Check(Status status, const char* where)
 {
@@ -95,6 +113,77 @@ static void RuntimeCheck(bool condition, const char* message)
     std::printf(
         "[p4-motion] RUNTIME CHECK FAILED: %s\n",
         message);
+}
+
+static GlassMaterial WithHighlight(
+    GlassMaterial material,
+    const LightFollowPresentation& light)
+{
+    const Status status =
+        material.SetHighlightPosition(
+            light.x,
+            light.y);
+
+    RuntimeCheck(
+        status.ok(),
+        "SetHighlightPosition rejected P4 presentation value");
+
+    return material;
+}
+
+static bool LightTracksState(
+    ControlInteractionState state)
+{
+    return
+        state == ControlInteractionState::Hover ||
+        state == ControlInteractionState::Pressed;
+}
+
+static void RetargetLight(
+    LightFollowMotion& motion,
+    ControlInteractionState state,
+    ControlPoint pointer,
+    const ControlBounds& bounds)
+{
+    if (LightTracksState(state))
+    {
+        motion.RetargetPointer(
+            pointer,
+            bounds);
+    }
+    else
+    {
+        motion.RetargetRest();
+    }
+}
+
+static void UpdateLightTargets(
+    ControlPoint pointer)
+{
+    RetargetLight(
+        g_ButtonLight,
+        g_Button.State(),
+        pointer,
+        g_Button.bounds);
+
+    RetargetLight(
+        g_ToggleLight,
+        g_Toggle.State(),
+        pointer,
+        g_Toggle.bounds);
+
+    RetargetLight(
+        g_SliderLight,
+        g_Slider.State(),
+        pointer,
+        g_Slider.bounds);
+}
+
+static void RetargetAllLightsRest()
+{
+    g_ButtonLight.RetargetRest();
+    g_ToggleLight.RetargetRest();
+    g_SliderLight.RetargetRest();
 }
 
 static uint32_t Pixel(int r, int g, int b)
@@ -137,6 +226,212 @@ static void FillRect(
     }
 }
 
+static uint8_t Glyph5x7(char c, int row)
+{
+    if (row < 0 || row >= 7)
+        return 0;
+
+    switch (c)
+    {
+        case 'C':
+        {
+            static constexpr uint8_t p[7] =
+                {14, 17, 16, 16, 16, 17, 14};
+            return p[row];
+        }
+
+        case 'O':
+        {
+            static constexpr uint8_t p[7] =
+                {14, 17, 17, 17, 17, 17, 14};
+            return p[row];
+        }
+
+        case 'N':
+        {
+            static constexpr uint8_t p[7] =
+                {17, 25, 21, 19, 17, 17, 17};
+            return p[row];
+        }
+
+        case 'T':
+        {
+            static constexpr uint8_t p[7] =
+                {31, 4, 4, 4, 4, 4, 4};
+            return p[row];
+        }
+
+        case 'I':
+        {
+            static constexpr uint8_t p[7] =
+                {14, 4, 4, 4, 4, 4, 14};
+            return p[row];
+        }
+
+        case 'U':
+        {
+            static constexpr uint8_t p[7] =
+                {17, 17, 17, 17, 17, 17, 14};
+            return p[row];
+        }
+
+        case 'E':
+        {
+            static constexpr uint8_t p[7] =
+                {31, 16, 16, 30, 16, 16, 31};
+            return p[row];
+        }
+
+        case 'G':
+        {
+            static constexpr uint8_t p[7] =
+                {14, 17, 16, 23, 17, 17, 14};
+            return p[row];
+        }
+
+        case 'L':
+        {
+            static constexpr uint8_t p[7] =
+                {16, 16, 16, 16, 16, 16, 31};
+            return p[row];
+        }
+
+        case 'S':
+        {
+            static constexpr uint8_t p[7] =
+                {15, 16, 16, 14, 1, 1, 30};
+            return p[row];
+        }
+
+        case 'D':
+        {
+            static constexpr uint8_t p[7] =
+                {30, 17, 17, 17, 17, 17, 30};
+            return p[row];
+        }
+
+        case 'R':
+        {
+            static constexpr uint8_t p[7] =
+                {30, 17, 17, 30, 20, 18, 17};
+            return p[row];
+        }
+
+        default:
+            return 0;
+    }
+}
+
+static int BitmapTextWidth(
+    const char* text,
+    int scale)
+{
+    if (!text || scale <= 0)
+        return 0;
+
+    const int count =
+        static_cast<int>(
+            std::strlen(text));
+
+    if (count <= 0)
+        return 0;
+
+    return
+        (count * 6 - 1) *
+        scale;
+}
+
+static void DrawBitmapText(
+    std::vector<uint32_t>& pixels,
+    uint32_t width,
+    uint32_t height,
+    int x,
+    int y,
+    const char* text,
+    int scale,
+    uint32_t color)
+{
+    if (!text || scale <= 0)
+        return;
+
+    int cursorX = x;
+
+    for (const char* p = text; *p; ++p)
+    {
+        for (int row = 0; row < 7; ++row)
+        {
+            const uint8_t bits =
+                Glyph5x7(*p, row);
+
+            for (int col = 0; col < 5; ++col)
+            {
+                const uint8_t mask =
+                    static_cast<uint8_t>(
+                        1u << (4 - col));
+
+                if ((bits & mask) == 0)
+                    continue;
+
+                FillRect(
+                    pixels,
+                    width,
+                    height,
+                    cursorX + col * scale,
+                    y + row * scale,
+                    scale,
+                    scale,
+                    color);
+            }
+        }
+
+        cursorX +=
+            6 * scale;
+    }
+}
+
+static void DrawCenteredBitmapText(
+    std::vector<uint32_t>& pixels,
+    uint32_t width,
+    uint32_t height,
+    const ControlBounds& bounds,
+    const char* text,
+    int scale,
+    uint32_t color)
+{
+    const int textWidth =
+        BitmapTextWidth(
+            text,
+            scale);
+
+    const int textHeight =
+        7 * scale;
+
+    const int x =
+        static_cast<int>(
+            std::round(
+                bounds.x +
+                (bounds.width -
+                 static_cast<float>(textWidth)) *
+                    0.5f));
+
+    const int y =
+        static_cast<int>(
+            std::round(
+                bounds.y +
+                (bounds.height -
+                 static_cast<float>(textHeight)) *
+                    0.5f));
+
+    DrawBitmapText(
+        pixels,
+        width,
+        height,
+        x,
+        y,
+        text,
+        scale,
+        color);
+}
 static void Layout(uint32_t width, uint32_t height)
 {
     const float w = static_cast<float>(width);
@@ -167,10 +462,23 @@ static void Layout(uint32_t width, uint32_t height)
 static void ConfigureMaterials()
 {
     g_ControlMaterial.SetCornerRadius(18.0f);
-    g_ControlMaterial.SetSpecularStrength(0.0f);
-    g_ControlMaterial.SetEdgeFresnel(0.0f);
+    // Keep the existing GlassMaterial specular/highlight stage enabled.
+    // P4 light-follow changes only highlight position; it does not introduce
+    // a new shader or material model.
+    // Readability diagnostic calibration pass 2:
+    // the hotspot still read too strongly and made the interior feel
+    // asymmetrically dented. Keep a restrained edge response, but reduce
+    // interior specular dominance further.
+    g_ControlMaterial.SetSpecularStrength(0.18f);
+    g_ControlMaterial.SetEdgeFresnel(0.30f);
     g_ControlMaterial.SetDispersionStrength(0.0f);
-    g_ControlMaterial.SetRefractionStrength(0.42f);
+    // Interior-shape diagnostic:
+    // reduce lensing strength while preserving the accepted edge response.
+    g_ControlMaterial.SetRefractionStrength(0.26f);
+    // Screenshot diagnosis: the left/right optical lobes read too convex.
+    // Reduce surface height/normal slope without changing accepted edge,
+    // specular, or refraction-strength calibration.
+    g_ControlMaterial.SetThickness(0.28f);
     g_ControlMaterial.SetTintAmount(0.05f);
     g_ControlMaterial.SetBrightness(1.0f);
     g_ControlMaterial.SetSaturation(1.0f);
@@ -183,6 +491,7 @@ static void ConfigureMaterials()
     g_Toggle.useCheckedStyle = false;
 
     g_TrackMaterial = g_ControlMaterial;
+    g_TrackMaterial.SetSpecularStrength(0.0f);
     g_TrackMaterial.SetCornerRadius(3.0f);
     g_TrackMaterial.SetRefractionStrength(0.30f);
     g_TrackMaterial.SetTintAmount(0.02f);
@@ -192,8 +501,11 @@ static void ConfigureMaterials()
     g_FillMaterial.SetTintAmount(0.07f);
 
     g_ThumbMaterial = g_ControlMaterial;
-    g_ThumbMaterial.SetRefractionStrength(0.45f);
+    g_ThumbMaterial.SetRefractionStrength(0.28f);
+    g_ThumbMaterial.SetThickness(0.30f);
     g_ThumbMaterial.SetTintAmount(0.04f);
+    g_ThumbMaterial.SetSpecularStrength(0.16f);
+    g_ThumbMaterial.SetEdgeFresnel(0.27f);
 }
 
 static bool CreateBackground(uint32_t width, uint32_t height)
@@ -203,27 +515,148 @@ static bool CreateBackground(uint32_t width, uint32_t height)
 
     std::vector<uint32_t> pixels(
         static_cast<size_t>(width) *
-        static_cast<size_t>(height),
-        Pixel(238, 241, 245));
+        static_cast<size_t>(height));
 
-    const uint32_t grid = Pixel(198, 205, 214);
-    const uint32_t dark = Pixel(30, 34, 42);
-    const uint32_t light = Pixel(252, 252, 252);
-    const uint32_t red = Pixel(205, 58, 65);
-    const uint32_t blue = Pixel(55, 92, 205);
+    // Readability diagnostic scene only.
+    //
+    // Three deliberately different regions:
+    //   left   = dark neutral content
+    //   middle = saturated/colorful content
+    //   right  = bright neutral content
+    //
+    // Fine structure, hard edges and thin lines make real refraction easy
+    // to distinguish from a flat translucent rectangle.
+    for (uint32_t y = 0; y < height; ++y)
+    {
+        const float fy =
+            static_cast<float>(y) /
+            static_cast<float>(
+                std::max<uint32_t>(1, height - 1));
 
-    for (int x = 0; x < static_cast<int>(width); x += 36)
+        for (uint32_t x = 0; x < width; ++x)
+        {
+            const float fx =
+                static_cast<float>(x) /
+                static_cast<float>(
+                    std::max<uint32_t>(1, width - 1));
+
+            int r = 0;
+            int g = 0;
+            int b = 0;
+
+            if (fx < 0.34f)
+            {
+                const float t = fx / 0.34f;
+
+                r = static_cast<int>(
+                    22.0f + 30.0f * t +
+                    8.0f * fy);
+
+                g = static_cast<int>(
+                    27.0f + 34.0f * t +
+                    10.0f * fy);
+
+                b = static_cast<int>(
+                    36.0f + 42.0f * t +
+                    14.0f * fy);
+            }
+            else if (fx < 0.68f)
+            {
+                const float t =
+                    (fx - 0.34f) / 0.34f;
+
+                r = static_cast<int>(
+                    54.0f +
+                    84.0f * t +
+                    22.0f * fy);
+
+                g = static_cast<int>(
+                    72.0f +
+                    36.0f * fy);
+
+                b = static_cast<int>(
+                    132.0f -
+                    54.0f * t +
+                    36.0f * fy);
+            }
+            else
+            {
+                const float t =
+                    (fx - 0.68f) / 0.32f;
+
+                r = static_cast<int>(
+                    210.0f + 38.0f * t);
+
+                g = static_cast<int>(
+                    218.0f + 31.0f * t);
+
+                b = static_cast<int>(
+                    229.0f + 24.0f * t);
+            }
+
+            // Subtle horizontal banding creates small-scale sampling detail.
+            if (((y / 28u) & 1u) != 0u)
+            {
+                r -= 7;
+                g -= 7;
+                b -= 7;
+            }
+
+            pixels[
+                static_cast<size_t>(y) *
+                    static_cast<size_t>(width) +
+                static_cast<size_t>(x)] =
+                    Pixel(
+                        std::clamp(r, 0, 255),
+                        std::clamp(g, 0, 255),
+                        std::clamp(b, 0, 255));
+        }
+    }
+
+    const uint32_t darkLine =
+        Pixel(18, 22, 29);
+
+    const uint32_t lightLine =
+        Pixel(244, 247, 250);
+
+    const uint32_t blue =
+        Pixel(44, 126, 226);
+
+    const uint32_t cyan =
+        Pixel(36, 183, 205);
+
+    const uint32_t magenta =
+        Pixel(188, 72, 162);
+
+    const uint32_t amber =
+        Pixel(226, 156, 51);
+
+    // Vertical high-frequency references.
+    for (int x = 0;
+         x < static_cast<int>(width);
+         x += 42)
+    {
+        const bool bright =
+            ((x / 42) & 1) != 0;
+
         FillRect(
             pixels,
             width,
             height,
             x,
             0,
-            1,
+            2,
             static_cast<int>(height),
-            grid);
+            bright
+                ? lightLine
+                : darkLine);
+    }
 
-    for (int y = 0; y < static_cast<int>(height); y += 36)
+    // Horizontal references.
+    for (int y = 0;
+         y < static_cast<int>(height);
+         y += 48)
+    {
         FillRect(
             pixels,
             width,
@@ -232,61 +665,200 @@ static bool CreateBackground(uint32_t width, uint32_t height)
             y,
             static_cast<int>(width),
             1,
-            grid);
+            lightLine);
+    }
+
+    // Strong dark/light boundary passing directly underneath the button.
+    FillRect(
+        pixels,
+        width,
+        height,
+        static_cast<int>(width * 0.16f),
+        static_cast<int>(height * 0.14f),
+        static_cast<int>(width * 0.075f),
+        static_cast<int>(height * 0.22f),
+        Pixel(246, 247, 249));
 
     FillRect(
         pixels,
         width,
         height,
-        static_cast<int>(width * 0.38f),
+        static_cast<int>(width * 0.235f),
+        static_cast<int>(height * 0.14f),
+        static_cast<int>(width * 0.070f),
+        static_cast<int>(height * 0.22f),
+        Pixel(15, 18, 24));
+
+    // Saturated content blocks for chromatic/refraction visibility.
+    FillRect(
+        pixels,
+        width,
+        height,
+        static_cast<int>(width * 0.35f),
         static_cast<int>(height * 0.12f),
-        4,
-        static_cast<int>(height * 0.46f),
-        red);
-
-    FillRect(
-        pixels,
-        width,
-        height,
-        static_cast<int>(width * 0.26f),
-        static_cast<int>(height * 0.34f),
-        static_cast<int>(width * 0.50f),
-        4,
+        static_cast<int>(width * 0.075f),
+        static_cast<int>(height * 0.32f),
         blue);
 
     FillRect(
         pixels,
         width,
         height,
-        static_cast<int>(width * 0.68f),
-        static_cast<int>(height * 0.15f),
-        static_cast<int>(width * 0.14f),
+        static_cast<int>(width * 0.44f),
         static_cast<int>(height * 0.18f),
-        dark);
+        static_cast<int>(width * 0.065f),
+        static_cast<int>(height * 0.28f),
+        cyan);
 
     FillRect(
         pixels,
         width,
         height,
-        static_cast<int>(width * 0.71f),
-        static_cast<int>(height * 0.18f),
-        static_cast<int>(width * 0.08f),
-        static_cast<int>(height * 0.12f),
-        light);
+        static_cast<int>(width * 0.53f),
+        static_cast<int>(height * 0.10f),
+        static_cast<int>(width * 0.060f),
+        static_cast<int>(height * 0.36f),
+        magenta);
 
+    FillRect(
+        pixels,
+        width,
+        height,
+        static_cast<int>(width * 0.61f),
+        static_cast<int>(height * 0.17f),
+        static_cast<int>(width * 0.050f),
+        static_cast<int>(height * 0.30f),
+        amber);
+
+    // Text-like content rows behind the slider region.
+    for (int row = 0; row < 5; ++row)
+    {
+        const int y =
+            static_cast<int>(
+                height * 0.62f) +
+            row * 22;
+
+        const int x =
+            static_cast<int>(
+                width * 0.26f) +
+            (row % 2) * 18;
+
+        const int w =
+            static_cast<int>(
+                width *
+                (0.38f -
+                 static_cast<float>(row) * 0.035f));
+
+        FillRect(
+            pixels,
+            width,
+            height,
+            x,
+            y,
+            w,
+            4,
+            row < 3
+                ? Pixel(238, 241, 246)
+                : Pixel(27, 31, 39));
+    }
+
+    // A compact checker field on the bright side.
+    const int checkerX =
+        static_cast<int>(
+            width * 0.72f);
+
+    const int checkerY =
+        static_cast<int>(
+            height * 0.18f);
+
+    const int cell = 20;
+
+    for (int cy = 0; cy < 8; ++cy)
+    {
+        for (int cx = 0; cx < 10; ++cx)
+        {
+            FillRect(
+                pixels,
+                width,
+                height,
+                checkerX + cx * cell,
+                checkerY + cy * cell,
+                cell,
+                cell,
+                ((cx + cy) & 1) != 0
+                    ? Pixel(25, 29, 37)
+                    : Pixel(239, 242, 247));
+        }
+    }
+
+    // P4 stable diagnostic labels.
+    //
+    // These are baked ONCE into the background texture. They deliberately
+    // avoid live HWND/GDI overlays fighting the D3D11 Present loop.
+    const uint32_t diagnosticText =
+        Pixel(246, 248, 252);
+
+    const ControlBounds diagnosticButton{
+        static_cast<float>(width) * 0.08f,
+        static_cast<float>(height) * 0.22f,
+        210.0f,
+        62.0f
+    };
+
+    const ControlBounds diagnosticToggle{
+        static_cast<float>(width) * 0.08f,
+        static_cast<float>(height) * 0.43f,
+        126.0f,
+        48.0f
+    };
+
+    DrawCenteredBitmapText(
+        pixels,
+        width,
+        height,
+        diagnosticButton,
+        "CONTINUE",
+        3,
+        diagnosticText);
+
+    DrawCenteredBitmapText(
+        pixels,
+        width,
+        height,
+        diagnosticToggle,
+        "TOGGLE",
+        3,
+        diagnosticText);
+
+    DrawBitmapText(
+        pixels,
+        width,
+        height,
+        static_cast<int>(
+            static_cast<float>(width) * 0.30f),
+        static_cast<int>(
+            static_cast<float>(height) * 0.70f) - 30,
+        "SLIDER",
+        3,
+        diagnosticText);
     D3D11_TEXTURE2D_DESC desc{};
     desc.Width = width;
     desc.Height = height;
     desc.MipLevels = 1;
     desc.ArraySize = 1;
-    desc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    desc.Format =
+        DXGI_FORMAT_R8G8B8A8_UNORM;
     desc.SampleDesc.Count = 1;
-    desc.Usage = D3D11_USAGE_DEFAULT;
-    desc.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+    desc.Usage =
+        D3D11_USAGE_DEFAULT;
+    desc.BindFlags =
+        D3D11_BIND_SHADER_RESOURCE;
 
     D3D11_SUBRESOURCE_DATA init{};
-    init.pSysMem = pixels.data();
-    init.SysMemPitch = width * 4;
+    init.pSysMem =
+        pixels.data();
+    init.SysMemPitch =
+        width * 4;
 
     ComPtr<ID3D11Texture2D> texture;
 
@@ -310,12 +882,14 @@ static bool CreateBackground(uint32_t width, uint32_t height)
     if (FAILED(hr))
         return false;
 
-    g_BackgroundTexture = std::move(texture);
-    g_BackgroundSRV = std::move(srv);
+    g_BackgroundTexture =
+        texture;
+
+    g_BackgroundSRV =
+        srv;
 
     return true;
 }
-
 static bool CopyBackgroundToBackbuffer()
 {
     if (!g_BackgroundTexture ||
@@ -405,11 +979,208 @@ static void AdvanceMotion(float dt)
     g_ToggleMotion.Step(dt);
     g_SliderMotion.Step(dt);
 
+    g_ButtonLight.Step(dt);
+    g_ToggleLight.Step(dt);
+    g_SliderLight.Step(dt);
+
+    if (g_ToggleDragSettling)
+    {
+        g_ToggleDragVisual.Step(dt);
+
+        const float target =
+            g_Toggle.IsChecked()
+                ? 1.0f
+                : 0.0f;
+
+        if (std::fabs(
+                g_ToggleDragVisual.Value() -
+                target) <= 0.001f)
+        {
+            g_ToggleDragVisual.Snap(
+                target);
+
+            g_ToggleDragSettling = false;
+        }
+    }
+
     RuntimeCheck(
         Near(g_Slider.Value(), sliderValueBefore, 0.000001f),
         "motion step changed semantic slider value");
 }
 
+static constexpr float kTogglePrototypeKnobSize = 32.0f;
+static constexpr float kTogglePrototypeKnobInset = 7.0f;
+static constexpr float kTogglePrototypeDragThresholdPx = 5.0f;
+static constexpr float kTogglePrototypeSettleSeconds = 0.110f;
+
+static float TogglePrototypeTravel() noexcept
+{
+    return std::max(
+        1.0f,
+        g_Toggle.bounds.width -
+            kTogglePrototypeKnobSize -
+            kTogglePrototypeKnobInset * 2.0f);
+}
+
+static float TogglePrototypeBaseCenterX() noexcept
+{
+    return
+        g_Toggle.bounds.x +
+        kTogglePrototypeKnobInset +
+        kTogglePrototypeKnobSize * 0.5f;
+}
+
+static float ToggleVisualProgress() noexcept
+{
+    if (g_ToggleDragArmed ||
+        g_ToggleDragSettling)
+    {
+        return std::clamp(
+            g_ToggleDragVisual.Value(),
+            0.0f,
+            1.0f);
+    }
+
+    return std::clamp(
+        g_ToggleMotion.Presentation().progress,
+        0.0f,
+        1.0f);
+}
+
+static void BeginToggleDrag(
+    ControlPoint point) noexcept
+{
+    if (!g_Toggle.IsEnabled())
+        return;
+
+    if (!HitTestRect(
+            g_Toggle.bounds,
+            point))
+    {
+        return;
+    }
+
+    const float progress =
+        std::clamp(
+            g_ToggleMotion.Presentation().progress,
+            0.0f,
+            1.0f);
+
+    g_ToggleDragVisual.Snap(
+        progress);
+
+    const float knobCenterX =
+        TogglePrototypeBaseCenterX() +
+        TogglePrototypeTravel() *
+            progress;
+
+    g_ToggleDragPointerOffset =
+        point.x -
+        knobCenterX;
+
+    g_ToggleDragStartX =
+        point.x;
+
+    g_ToggleDragArmed = true;
+    g_ToggleDragMoved = false;
+    g_ToggleDragSettling = false;
+}
+
+static void UpdateToggleDrag(
+    ControlPoint point) noexcept
+{
+    if (!g_ToggleDragArmed)
+        return;
+
+    if (!g_ToggleDragMoved)
+    {
+        const float distance =
+            std::fabs(
+                point.x -
+                g_ToggleDragStartX);
+
+        if (distance <
+            kTogglePrototypeDragThresholdPx)
+        {
+            return;
+        }
+
+        g_ToggleDragMoved = true;
+    }
+
+    const float desiredCenterX =
+        point.x -
+        g_ToggleDragPointerOffset;
+
+    const float progress =
+        std::clamp(
+            (desiredCenterX -
+             TogglePrototypeBaseCenterX()) /
+                TogglePrototypeTravel(),
+            0.0f,
+            1.0f);
+
+    // During direct manipulation there is deliberately no animation latency.
+    g_ToggleDragVisual.Snap(
+        progress);
+
+    // Crossing the midpoint previews the semantic result immediately.
+    g_Toggle.SetChecked(
+        progress >= 0.5f);
+}
+
+static bool EndToggleDrag(
+    ControlPoint point) noexcept
+{
+    if (!g_ToggleDragArmed)
+        return false;
+
+    if (!g_ToggleDragMoved)
+    {
+        // It was a normal click. Let frozen GlassToggle::PointerUp preserve
+        // the existing click-to-toggle behavior.
+        g_ToggleDragArmed = false;
+        return false;
+    }
+
+    UpdateToggleDrag(
+        point);
+
+    const bool finalChecked =
+        g_ToggleDragVisual.Value() >=
+        0.5f;
+
+    g_Toggle.SetChecked(
+        finalChecked);
+
+    // Do NOT call GlassToggle::PointerUp for a completed drag because that
+    // method intentionally toggles on activation. Clear only transient
+    // interaction state, then restore hover from the final pointer position.
+    g_Toggle.PointerLeave();
+    g_Toggle.PointerMove(
+        point);
+
+    g_ToggleDragArmed = false;
+
+    const float target =
+        finalChecked
+            ? 1.0f
+            : 0.0f;
+
+    g_ToggleDragVisual.Retarget(
+        target,
+        kTogglePrototypeSettleSeconds,
+        TweenCurve::SmoothStep);
+
+    g_ToggleDragSettling = true;
+
+    std::printf(
+        "[p4-motion] Toggle drag release progress=%.4f checked=%d\n",
+        g_ToggleDragVisual.Value(),
+        finalChecked ? 1 : 0);
+
+    return true;
+}
 static bool RenderFrame()
 {
     if (!CopyBackgroundToBackbuffer())
@@ -442,22 +1213,32 @@ static bool RenderFrame()
             g_Button.bounds,
             buttonVisual.scale);
 
+    const GlassMaterial buttonMaterial =
+        WithHighlight(
+            g_Button.Material(),
+            g_ButtonLight.Presentation());
+
     if (!DrawGlass(
-        g_Button.Material(),
+        buttonMaterial,
         buttonBounds))
     {
         return false;
     }
 
+    const GlassMaterial toggleMaterial =
+        WithHighlight(
+            g_Toggle.Material(),
+            g_ToggleLight.Presentation());
+
     if (!DrawGlass(
-        g_Toggle.Material(),
+        toggleMaterial,
         g_Toggle.bounds))
     {
         return false;
     }
 
     const float toggleProgress =
-        g_ToggleMotion.Presentation().progress;
+        ToggleVisualProgress();
 
     constexpr float knobSize = 32.0f;
     constexpr float knobInset = 7.0f;
@@ -549,7 +1330,9 @@ static bool RenderFrame()
     };
 
     GlassMaterial thumbMaterial =
-        g_ThumbMaterial;
+        WithHighlight(
+            g_ThumbMaterial,
+            g_SliderLight.Presentation());
 
     thumbMaterial.SetCornerRadius(
         thumbSize * 0.5f);
@@ -563,6 +1346,7 @@ static bool RenderFrame()
 
     HRESULT presentHr =
         g_Device.Present();
+
 
     if (FAILED(presentHr))
     {
@@ -613,11 +1397,12 @@ static ControlPoint Center(
 static void SendMove(ControlPoint point)
 {
     // Scripted mode drives the same frozen semantic APIs directly.
-    // This keeps the runtime deterministic and prevents physical cursor
-    // messages from interleaving with the synthetic interaction sequence.
+    // Pointer position itself remains host-owned and is separately supplied
+    // to the P4 presentation-only light-follow binding.
     g_Button.PointerMove(point);
     g_Toggle.PointerMove(point);
     g_Slider.PointerMove(point);
+    UpdateLightTargets(point);
 }
 
 static void SendDown(ControlPoint point)
@@ -625,6 +1410,7 @@ static void SendDown(ControlPoint point)
     g_Button.PointerDown(point);
     g_Toggle.PointerDown(point);
     g_Slider.PointerDown(point);
+    UpdateLightTargets(point);
 }
 
 static void SendUp(ControlPoint point)
@@ -632,6 +1418,7 @@ static void SendUp(ControlPoint point)
     g_Button.PointerUp(point);
     g_Toggle.PointerUp(point);
     g_Slider.PointerUp(point);
+    UpdateLightTargets(point);
 }
 
 static void Click(ControlPoint point)
@@ -647,7 +1434,10 @@ static void Evidence(const char* name)
         "[motion-evidence] %s frame=%d "
         "buttonState=%d buttonScale=%.5f "
         "toggle=%d progress=%.5f "
-        "sliderState=%d thumb=%.3f value=%.4f\n",
+        "sliderState=%d thumb=%.3f value=%.4f "
+        "buttonLight=(%.3f,%.3f) "
+        "toggleLight=(%.3f,%.3f) "
+        "sliderLight=(%.3f,%.3f)\n",
         name,
         g_ScriptFrame,
         static_cast<int>(g_Button.State()),
@@ -656,7 +1446,13 @@ static void Evidence(const char* name)
         g_ToggleMotion.Presentation().progress,
         static_cast<int>(g_Slider.State()),
         g_SliderMotion.Presentation().thumbSizePx,
-        g_Slider.Value());
+        g_Slider.Value(),
+        g_ButtonLight.Presentation().x,
+        g_ButtonLight.Presentation().y,
+        g_ToggleLight.Presentation().x,
+        g_ToggleLight.Presentation().y,
+        g_SliderLight.Presentation().x,
+        g_SliderLight.Presentation().y);
 }
 
 static void RunScriptedInput()
@@ -677,6 +1473,45 @@ static void RunScriptedInput()
         SendMove(button);
         Evidence("button-hover-input");
         break;
+
+    case 18:
+    {
+        ControlPoint left{
+            g_Button.bounds.x +
+                g_Button.bounds.width * 0.15f,
+            button.y
+        };
+
+        SendMove(left);
+        Evidence("light-button-left");
+        break;
+    }
+
+    case 21:
+    {
+        ControlPoint right{
+            g_Button.bounds.x +
+                g_Button.bounds.width * 0.85f,
+            button.y
+        };
+
+        SendMove(right);
+        Evidence("light-button-right");
+        break;
+    }
+
+    case 24:
+    {
+        ControlPoint reverse{
+            g_Button.bounds.x +
+                g_Button.bounds.width * 0.20f,
+            button.y
+        };
+
+        SendMove(reverse);
+        Evidence("light-button-rapid-reverse");
+        break;
+    }
 
     case 28:
         SendDown(button);
@@ -733,6 +1568,10 @@ static void RunScriptedInput()
             WM_MOUSELEAVE,
             0,
             0);
+        break;
+
+    case 60:
+        Evidence("light-rest-after-leave");
         break;
 
     case 68:
@@ -975,14 +1814,23 @@ static LRESULT CALLBACK WndProc(
         g_Toggle.PointerMove(point);
         g_Slider.PointerMove(point);
 
+        UpdateToggleDrag(point);
+        UpdateLightTargets(point);
+
         return 0;
     }
 
     case WM_MOUSELEAVE:
         g_TrackingMouse = false;
         g_Button.PointerLeave();
-        g_Toggle.PointerLeave();
+
+        if (!g_ToggleDragArmed)
+        {
+            g_Toggle.PointerLeave();
+        }
+
         g_Slider.PointerLeave();
+        RetargetAllLightsRest();
         return 0;
 
     case WM_LBUTTONDOWN:
@@ -999,6 +1847,9 @@ static LRESULT CALLBACK WndProc(
         g_Toggle.PointerDown(point);
         g_Slider.PointerDown(point);
 
+        BeginToggleDrag(point);
+        UpdateLightTargets(point);
+
         return 0;
     }
 
@@ -1011,8 +1862,18 @@ static LRESULT CALLBACK WndProc(
             MousePoint(lParam);
 
         g_Button.PointerUp(point);
-        g_Toggle.PointerUp(point);
+
+        const bool toggleDragConsumed =
+            EndToggleDrag(point);
+
+        if (!toggleDragConsumed)
+        {
+            g_Toggle.PointerUp(point);
+        }
+
         g_Slider.PointerUp(point);
+
+        UpdateLightTargets(point);
 
         if (GetCapture() == hwnd)
             ReleaseCapture();

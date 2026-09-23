@@ -276,3 +276,16 @@ add_custom_command(TARGET P4_Motion_Smoke POST_BUILD
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P4_Motion_Smoke>/shaders
 )
+
+# P4 continuation - deterministic highlight/light-follow coverage.
+add_executable(P4_Light_Follow_Tests
+    tests/p4_light_follow_tests.cpp
+)
+target_link_libraries(P4_Light_Follow_Tests
+    PRIVATE
+        AuroraGlassMotionControls
+)
+add_test(
+    NAME P4_Light_Follow_Tests
+    COMMAND P4_Light_Follow_Tests
+)
