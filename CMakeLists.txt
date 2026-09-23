@@ -434,3 +434,27 @@ add_test(
     NAME P6_Wpf_Interop_Tests
     COMMAND P6_Wpf_Interop_Tests
 )
+
+# P6 Slice B - WPF host lifecycle.
+# Reuses the frozen P5 Win32HostAttachment production lifecycle.
+target_sources(AuroraGlassWpfInterop PRIVATE
+    adapters/wpf/wpf_host_bridge.cpp
+)
+
+target_link_libraries(AuroraGlassWpfInterop PRIVATE
+    AuroraGlassWin32Adapter
+)
+
+add_executable(P6_Wpf_Host_Lifecycle_Tests
+    tests/p6_wpf_host_lifecycle_tests.cpp
+)
+
+target_link_libraries(P6_Wpf_Host_Lifecycle_Tests PRIVATE
+    AuroraGlassWpfInterop
+    user32
+)
+
+add_test(
+    NAME P6_Wpf_Host_Lifecycle_Tests
+    COMMAND P6_Wpf_Host_Lifecycle_Tests
+)

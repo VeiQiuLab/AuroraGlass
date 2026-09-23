@@ -1,0 +1,12 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <AssemblyName>AuroraGlass.Wpf</AssemblyName>
+    <RootNamespace>AuroraGlass.Wpf</RootNamespace>
+    <BaseOutputPath>../../../build/managed/AuroraGlass.Wpf/bin/</BaseOutputPath>
+    <BaseIntermediateOutputPath>../../../build/managed/AuroraGlass.Wpf/obj/</BaseIntermediateOutputPath>
+  </PropertyGroup>
+</Project>
