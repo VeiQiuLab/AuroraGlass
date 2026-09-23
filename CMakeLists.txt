@@ -347,3 +347,25 @@ add_test(
     NAME P5_Win32_Host_Metrics_Tests
     COMMAND P5_Win32_Host_Metrics_Tests
 )
+
+# P5 Slice C - minimal Win32 -> frozen P3 glass-control input bridge.
+target_sources(AuroraGlassWin32Adapter PRIVATE
+    adapters/win32/win32_control_input_bridge.cpp
+)
+
+target_link_libraries(AuroraGlassWin32Adapter PUBLIC
+    AuroraGlassControls
+)
+
+add_executable(P5_Win32_Control_Input_Bridge_Tests
+    tests/p5_win32_control_input_bridge_tests.cpp
+)
+
+target_link_libraries(P5_Win32_Control_Input_Bridge_Tests PRIVATE
+    AuroraGlassWin32Adapter
+)
+
+add_test(
+    NAME P5_Win32_Control_Input_Bridge_Tests
+    COMMAND P5_Win32_Control_Input_Bridge_Tests
+)
