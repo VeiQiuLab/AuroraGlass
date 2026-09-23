@@ -232,3 +232,47 @@ target_compile_features(AuroraGlassMotion PUBLIC cxx_std_20)
 add_executable(P4_Motion_Tests tests/p4_motion_tests.cpp)
 target_link_libraries(P4_Motion_Tests PRIVATE AuroraGlassMotion)
 add_test(NAME P4_Motion_Tests COMMAND P4_Motion_Tests)
+
+# P4 Slice B - semantic controls -> animated presentation bindings.
+# One-way dependency: P3 semantic state -> P4 presentation motion.
+add_library(AuroraGlassMotionControls STATIC
+    src/motion/control_motion.cpp
+)
+target_include_directories(AuroraGlassMotionControls PUBLIC src)
+target_compile_features(AuroraGlassMotionControls PUBLIC cxx_std_20)
+target_link_libraries(AuroraGlassMotionControls
+    PUBLIC
+        AuroraGlassMotion
+        AuroraGlassControls
+)
+
+add_executable(P4_Motion_Integration_Tests
+    tests/p4_motion_integration_tests.cpp
+)
+target_link_libraries(P4_Motion_Integration_Tests
+    PRIVATE
+        AuroraGlassMotionControls
+)
+add_test(
+    NAME P4_Motion_Integration_Tests
+    COMMAND P4_Motion_Integration_Tests
+)
+
+# P4 Slice B - runtime motion integration smoke.
+add_executable(P4_Motion_Smoke
+    samples/p4_motion_smoke/main.cpp
+)
+target_link_libraries(P4_Motion_Smoke
+    PRIVATE
+        AuroraGlassCore
+        AuroraGlassControls
+        AuroraGlassMotionControls
+        d3d11
+        dxgi
+        d3dcompiler
+)
+add_custom_command(TARGET P4_Motion_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P4_Motion_Smoke>/shaders
+)
