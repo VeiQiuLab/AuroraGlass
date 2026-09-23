@@ -575,3 +575,31 @@ add_test(
     NAME P7_WinUI_Material_Render_Tests
     COMMAND P7_WinUI_Material_Render_Tests
 )
+# P7 Slice D - formal WinUI 3 integration sample.
+# Consumes production AuroraGlass.WinUI + AuroraGlassWinUIInterop only.
+add_custom_target(P7_WinUI_Sample ALL
+    COMMAND dotnet build
+        "${CMAKE_SOURCE_DIR}/samples/p7_winui_sample/P7.WinUISample.csproj"
+        -c Debug
+        -p:Platform=x64
+        --nologo
+    DEPENDS
+        AuroraGlassWinUIInterop
+        AuroraGlassWpfInterop
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    VERBATIM
+)
+
+add_test(
+    NAME P7_WinUI_Formal_Sample_Smoke
+    COMMAND
+        "${CMAKE_SOURCE_DIR}/build/managed/P7.WinUISample/bin/x64/Debug/net10.0-windows10.0.19041.0/win-x64/P7.WinUISample.exe"
+        --scripted
+)
+
+set_tests_properties(
+    P7_WinUI_Formal_Sample_Smoke
+    PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        TIMEOUT 30
+)
