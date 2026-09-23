@@ -369,3 +369,33 @@ add_test(
     NAME P5_Win32_Control_Input_Bridge_Tests
     COMMAND P5_Win32_Control_Input_Bridge_Tests
 )
+
+# P5 Slice D - fresh ordinary Win32 app consuming production adapters.
+add_executable(P5_Win32_Sample WIN32
+    samples/p5_win32_sample/main.cpp
+)
+
+target_link_libraries(P5_Win32_Sample PRIVATE
+    AuroraGlassCore
+    AuroraGlassControls
+    AuroraGlassMotionControls
+    AuroraGlassWin32Adapter
+    d3d11
+    dxgi
+    d3dcompiler
+    comctl32
+)
+
+add_custom_command(TARGET P5_Win32_Sample POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+        ${CMAKE_SOURCE_DIR}/shaders
+        $<TARGET_FILE_DIR:P5_Win32_Sample>/shaders
+)
+
+add_test(
+    NAME P5_Fresh_Win32_Sample_Smoke
+    COMMAND ${CMAKE_COMMAND} -E chdir
+        $<TARGET_FILE_DIR:P5_Win32_Sample>
+        $<TARGET_FILE:P5_Win32_Sample>
+        --scripted-smoke
+)
