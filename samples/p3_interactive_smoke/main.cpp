@@ -74,6 +74,11 @@ static constexpr float kBlur = 0.0f;
 static ComPtr<ID3D11Texture2D>          g_BgTex;
 static ComPtr<ID3D11RenderTargetView>   g_BgRtv;
 static ComPtr<ID3D11ShaderResourceView> g_BgSrv;
+
+// Dedicated calibration-only background. Original g_Bg* remains untouched for
+// deterministic visual cases 01-14.
+static ComPtr<ID3D11Texture2D>          g_CalibrationBgTex;
+static ComPtr<ID3D11ShaderResourceView> g_CalibrationBgSrv;
 static ComPtr<ID3D11VertexShader>       g_FsVS;
 static ComPtr<ID3D11PixelShader>        g_BlitPS;
 static ComPtr<ID3D11PixelShader>        g_OverlayPS;
@@ -118,6 +123,49 @@ static bool MakeBackgroundTexture(ID3D11Device* dev, uint32_t w, uint32_t h) {
     sd.pSysMem = pixels.data(); sd.SysMemPitch = w * 4;
     if (FAILED(dev->CreateTexture2D(&td, &sd, &g_BgTex))) return false;
     if (FAILED(dev->CreateShaderResourceView(g_BgTex.Get(), nullptr, &g_BgSrv))) return false;
+    return true;
+}
+
+static bool MakeMaterialCalibrationTexture(
+    ID3D11Device* dev,
+    uint32_t w,
+    uint32_t h)
+{
+    std::vector<uint32_t> pixels;
+    testbench::GenerateMaterialCalibration(
+        (int)w,
+        (int)h,
+        pixels);
+
+    g_CalibrationBgSrv.Reset();
+    g_CalibrationBgTex.Reset();
+
+    D3D11_TEXTURE2D_DESC td{};
+    td.Width = w;
+    td.Height = h;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+    td.SampleDesc.Count = 1;
+    td.Usage = D3D11_USAGE_IMMUTABLE;
+    td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
+
+    D3D11_SUBRESOURCE_DATA sd{};
+    sd.pSysMem = pixels.data();
+    sd.SysMemPitch = w * 4;
+
+    if (FAILED(dev->CreateTexture2D(
+            &td,
+            &sd,
+            &g_CalibrationBgTex)))
+        return false;
+
+    if (FAILED(dev->CreateShaderResourceView(
+            g_CalibrationBgTex.Get(),
+            nullptr,
+            &g_CalibrationBgSrv)))
+        return false;
+
     return true;
 }
 
@@ -254,8 +302,50 @@ static const VisualPreset kPresets[] = {
     { "12_lens_shape_edge.png",   11 },
     { "13_lens_contrast_edge.png",12 },
     { "14_full_scene.png",        13 },
+    { "15_material_calibration.png", 14 },
 };
 static const int kPresetCount = (int)(sizeof(kPresets)/sizeof(kPresets[0]));
+
+struct MaterialCalibrationPreset {
+    const char* name;
+    float refraction;
+    float thickness;
+    float frost;
+    float dispersion;
+    float edgeFresnel;
+    float specular;
+    float tint;
+    float opacity;
+};
+
+static const MaterialCalibrationPreset kMaterialCalibration[] = {
+    // Clear: small controls / rich background.
+    { "Clear",   0.34f, 0.22f, 1.5f, 0.000f, 0.03f, 0.00f, 0.02f, 0.96f },
+
+    // Regular: balanced general-purpose glass.
+    { "Regular", 0.42f, 0.50f, 4.0f, 0.010f, 0.05f, 0.02f, 0.03f, 0.95f },
+
+    // Thick: larger lens/panel; deeper profile, not merely stronger refraction.
+    { "Thick",   0.48f, 0.85f, 7.0f, 0.020f, 0.07f, 0.03f, 0.04f, 0.94f },
+};
+
+static GlassMaterial MakeCalibrationMaterial(const MaterialCalibrationPreset& p) {
+    GlassMaterial m;
+    m.SetCornerRadius(24.0f);
+    m.SetRefractionStrength(p.refraction);
+    m.SetThickness(p.thickness);
+    m.SetBlurRadius(p.frost);
+    m.SetDispersionStrength(p.dispersion);
+    m.SetEdgeFresnel(p.edgeFresnel);
+    m.SetSpecularStrength(p.specular);
+    m.SetTintAmount(p.tint);
+    m.SetOpacity(p.opacity);
+    m.SetBrightness(1.0f);
+    m.SetSaturation(1.0f);
+    m.SetNoiseAmount(0.0f);
+    m.SetHighlightPosition(-0.35f, -0.30f);
+    return m;
+}
 
 static void ApplyPreset(int kind, uint32_t W, uint32_t H) {
     const ControlPoint away{ -10000.0f, -10000.0f };
@@ -291,6 +381,7 @@ static void ApplyPreset(int kind, uint32_t W, uint32_t H) {
     case 11: g_DragObj = ControlBounds{ (float)W*0.10f, (float)H*0.34f, 200.0f, 110.0f }; break;
     case 12: g_DragObj = ControlBounds{ (float)W*0.62f, (float)H*0.34f, 200.0f, 110.0f }; break;
     case 13: g_Toggle.checked = true; g_Slider.SetValue(0.60f); break;
+    case 14: break; // dedicated material calibration scene in the render loop
     default: break;
     }
 }
@@ -439,11 +530,118 @@ int main(int argc, char** argv) {
                 g_Time = 0.0f;
             }
 
-            BlitToTarget(g_Device.context.Get(), g_Device.rtv.Get(), g_BgSrv.Get(), W, H);
+            const bool materialCalibration =
+                g_VisualMode && kPresets[g_VisualIndex].kind == 14;
+
+            ID3D11ShaderResourceView* frameBackground =
+                g_BgSrv.Get();
+
+            if (materialCalibration) {
+                if (!MakeMaterialCalibrationTexture(
+                        g_Device.device.Get(),
+                        W,
+                        H)) {
+                    std::printf(
+                        "[visual] calibration background creation FAILED\n");
+                    return 1;
+                }
+
+                frameBackground =
+                    g_CalibrationBgSrv.Get();
+            }
+
+            BlitToTarget(
+                g_Device.context.Get(),
+                g_Device.rtv.Get(),
+                frameBackground,
+                W,
+                H);
+
+            if (materialCalibration) {
+                // One deterministic frame, same-size references, left -> right:
+                // Clear | Regular | Thick.
+                //
+                // Each reference prepares its own shared backdrop blur because
+                // Frost is a real background-sampling dimension and the batch
+                // contract intentionally fixes one blur radius per PrepareFrame.
+                const float glassW = 260.0f;
+                const float glassH = 150.0f;
+                const float y = (float)H * 0.30f;
+                const float xs[3] = {
+                    (float)W * 0.07f,
+                    (float)W * 0.395f,
+                    (float)W * 0.72f
+                };
+
+                FrameInfo cfi;
+                cfi.timeSeconds = 0.0f;
+
+                for (int i = 0; i < 3; ++i) {
+                    GlassMaterial m = MakeCalibrationMaterial(kMaterialCalibration[i]);
+
+                    FailFast(
+                        "PrepareFrame(calibration)",
+                        g_Surface.PrepareFrame(
+                            g_Device.context.Get(),
+                            frameBackground,
+                            cfi,
+                            m.GetBlurRadius()));
+
+                    g_Surface.SetMaterial(m);
+
+                    GlassRect r{
+                        xs[i],
+                        y,
+                        glassW,
+                        glassH
+                    };
+
+                    FailFast(
+                        "RenderRect(calibration)",
+                        g_Surface.RenderRect(
+                            g_Device.context.Get(),
+                            g_Device.rtv.Get(),
+                            r));
+                }
+
+                std::printf(
+                    "[visual] material calibration: Clear | Regular | Thick\n");
+
+                const char* fn = kPresets[g_VisualIndex].file;
+                std::wstring path =
+                    std::wstring(g_VisualOutDir.begin(), g_VisualOutDir.end());
+                path += L"\\";
+                for (const char* p = fn; *p; ++p)
+                    path += (wchar_t)(unsigned char)*p;
+
+                bool ok = CaptureBackbuffer(
+                    g_Device.device.Get(),
+                    g_Device.context.Get(),
+                    g_Device.swapChain.Get(),
+                    W,
+                    H,
+                    path);
+
+                std::printf(
+                    "[visual] %s : %s\n",
+                    ok ? "OK" : "FAIL",
+                    fn);
+
+                OutputDebugStringA(
+                    ok
+                        ? "[visual] calibration captured\n"
+                        : "[visual] calibration capture FAILED\n");
+
+                ++g_VisualIndex;
+                if (g_VisualIndex >= kPresetCount)
+                    g_Running = false;
+
+                continue;
+            }
 
             FrameInfo fi; fi.timeSeconds = g_Time;
             FailFast("PrepareFrame",
-                     g_Surface.PrepareFrame(g_Device.context.Get(), g_BgSrv.Get(), fi, kBlur));
+                     g_Surface.PrepareFrame(g_Device.context.Get(), frameBackground, fi, kBlur));
 
             auto rect = [&](float x, float y, float w, float h, const GlassMaterial& m) {
                 g_Surface.SetMaterial(m);
@@ -579,6 +777,8 @@ int main(int argc, char** argv) {
 
     std::printf("Shutting down...\n");
     g_Surface.Reset();
+    g_CalibrationBgSrv.Reset();
+    g_CalibrationBgTex.Reset();
     g_Device.context->ClearState();
     g_Device.context->Flush();
     g_Device.rtv.Reset();

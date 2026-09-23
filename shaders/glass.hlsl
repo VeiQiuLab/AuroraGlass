@@ -40,15 +40,29 @@ static const float kVirtualDepth = 140.0;
 
 float2 LensOffsetPx(float2 gdir, float distInside, float thickness, float refraction)
 {
-    float bevelWidth = clamp(thickness, 0.05, 1.0) * 60.0;   // px
-    float t = saturate(distInside / bevelWidth);             // 0 edge -> 1 plateau
-    float depth = bevelWidth * 0.6;
-    float dhdt  = -2.0 * depth * (1.0 - t);
+    // Material calibration:
+    // thickness now controls two related internal profile dimensions:
+    //   1) bevelWidth   = how far the bending zone extends inward;
+    //   2) profileDepth = how strongly the surface rises through that zone.
+    //
+    // The old model used depth = bevelWidth * constant, which kept the maximum
+    // slope nearly constant and made thickness behave mostly like edge width.
+    // This keeps the same smooth quadratic plateau and Snell projection while
+    // allowing shallow controls and thick lenses to differ without merely
+    // increasing refractionStrength.
+    float th = saturate(thickness);
+    float bevelWidth = lerp(8.0, 60.0, th);           // px, edge -> plateau reach
+    float profileDepth = 36.0 * pow(th, 1.20);        // internal height scale
+
+    float t = saturate(distInside / bevelWidth);      // 0 edge -> 1 plateau
+    float dhdt = -2.0 * profileDepth * (1.0 - t);
     float2 gradH = (dhdt / bevelWidth) * (-gdir);
+
     float3 N = normalize(float3(-gradH.x, -gradH.y, 1.0));
     float3 I = float3(0.0, 0.0, -1.0);
     float3 R = refract(I, N, 1.0 / kIOR);
     if (dot(R, R) < 1e-6) R = I;
+
     float s = kVirtualDepth / max(-R.z, 1e-3);
     return R.xy * s * refraction;
 }

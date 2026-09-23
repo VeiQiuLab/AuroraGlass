@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 // ============================================================
 // AuroraGlass P3 interactive sample - SAMPLE-ONLY test bench background.
 //
@@ -110,6 +110,134 @@ struct Img {
         }
     }
 };
+
+// Calibration-only repeated reference tile.
+//
+// Every material preset is evaluated over the SAME content:
+//   - fine grid
+//   - text + digits
+//   - high-contrast vertical/horizontal edges
+//   - dark/light blocks
+//   - red/blue color blocks
+//
+// This does NOT replace Generate(); the original 01-14 visual baseline remains
+// unchanged.
+inline void DrawMaterialCalibrationTile(
+    Img& img,
+    int x,
+    int y,
+    int w,
+    int h)
+{
+    const uint32_t tileBg = MakeRGB(238, 240, 242);
+    const uint32_t grid   = MakeRGB(175, 180, 186);
+    const uint32_t ink    = MakeRGB(38, 40, 46);
+    const uint32_t red    = MakeRGB(205, 58, 62);
+    const uint32_t blue   = MakeRGB(58, 88, 198);
+
+    img.FillRect(x, y, w, h, tileBg);
+
+    for (int gx = 0; gx <= w; gx += 20)
+        img.VLine(x + gx, y, h, 1, grid);
+
+    for (int gy = 0; gy <= h; gy += 20)
+        img.HLine(x, y + gy, w, 1, grid);
+
+    img.Text(x + 10, y + 10, 2, ink, "GLASS");
+    img.Text(x + 10, y + 31, 2, ink, "0123456789");
+
+    const int crossX = x + w / 2;
+    const int crossY = y + h / 2;
+
+    img.VLine(crossX, y + 4, h - 8, 3, red);
+    img.HLine(x + 4, crossY, w - 8, 3, blue);
+
+    const int blockY = y + h - 38;
+    const int blockW = 48;
+    const int blockH = 28;
+    const int gap = 8;
+    const int blockX = x + 12;
+
+    img.FillRect(
+        blockX,
+        blockY,
+        blockW,
+        blockH,
+        MakeRGB(28, 30, 34));
+
+    img.FillRect(
+        blockX + (blockW + gap),
+        blockY,
+        blockW,
+        blockH,
+        MakeRGB(250, 250, 250));
+
+    img.FillRect(
+        blockX + (blockW + gap) * 2,
+        blockY,
+        blockW,
+        blockH,
+        red);
+
+    img.FillRect(
+        blockX + (blockW + gap) * 3,
+        blockY,
+        blockW,
+        blockH,
+        blue);
+}
+
+inline void GenerateMaterialCalibration(
+    int W,
+    int H,
+    std::vector<uint32_t>& out)
+{
+    Img img(W, H);
+
+    for (int y = 0; y < H; ++y) {
+        int v = 244 - (y * 10) / (H > 0 ? H : 1);
+        uint32_t c = MakeRGB(v, v, v);
+        for (int x = 0; x < W; ++x)
+            img.Set(x, y, c);
+    }
+
+    const int tileW = 260;
+    const int tileH = 150;
+    const int tileY = (int)((float)H * 0.30f);
+
+    const int xs[3] = {
+        (int)((float)W * 0.07f),
+        (int)((float)W * 0.395f),
+        (int)((float)W * 0.72f)
+    };
+
+    const char* labels[3] = {
+        "CLEAR",
+        "REGULAR",
+        "THICK"
+    };
+
+    const uint32_t labelColor =
+        MakeRGB(42, 44, 50);
+
+    for (int i = 0; i < 3; ++i) {
+        img.Text(
+            xs[i] + 4,
+            tileY - 38,
+            3,
+            labelColor,
+            labels[i]);
+
+        DrawMaterialCalibrationTile(
+            img,
+            xs[i],
+            tileY,
+            tileW,
+            tileH);
+    }
+
+    out = std::move(img.px);
+}
 
 // Build the test bench image (bright/neutral, lots of whitespace).
 inline void Generate(int W, int H, std::vector<uint32_t>& out) {
