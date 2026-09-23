@@ -304,3 +304,33 @@ add_test(
     NAME P4_Reduced_Motion_Tests
     COMMAND P4_Reduced_Motion_Tests
 )
+
+# P5 Win32 Adapter - Slice A: host HWND attachment lifecycle.
+add_library(AuroraGlassWin32Adapter STATIC
+    adapters/win32/win32_host_attachment.cpp
+)
+
+target_include_directories(AuroraGlassWin32Adapter PUBLIC
+    adapters
+)
+
+target_compile_features(AuroraGlassWin32Adapter PUBLIC
+    cxx_std_20
+)
+
+target_link_libraries(AuroraGlassWin32Adapter PRIVATE
+    Comctl32
+)
+
+add_executable(P5_Win32_Attachment_Tests
+    tests/p5_win32_attachment_tests.cpp
+)
+
+target_link_libraries(P5_Win32_Attachment_Tests PRIVATE
+    AuroraGlassWin32Adapter
+)
+
+add_test(
+    NAME P5_Win32_Attachment_Tests
+    COMMAND P5_Win32_Attachment_Tests
+)
