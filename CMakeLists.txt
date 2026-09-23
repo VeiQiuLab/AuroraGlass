@@ -546,3 +546,32 @@ add_test(
     NAME P7_WinUI_Metrics_Input_Tests
     COMMAND P7_WinUI_Metrics_Input_Tests
 )
+# P7 Slice C - WinUI 3 material / rendering consumption boundary.
+target_sources(AuroraGlassWinUIInterop PRIVATE
+    adapters/winui/winui_material_bridge.cpp
+    adapters/winui/winui_render_host_bridge.cpp
+)
+
+target_link_libraries(AuroraGlassWinUIInterop PRIVATE
+    AuroraGlassWpfInterop
+    comctl32
+)
+
+add_executable(P7_WinUI_Material_Render_Tests
+    tests/p7_winui_material_render_tests.cpp
+)
+
+target_include_directories(P7_WinUI_Material_Render_Tests PRIVATE
+    adapters
+)
+
+target_link_libraries(P7_WinUI_Material_Render_Tests PRIVATE
+    AuroraGlassWinUIInterop
+    AuroraGlassWpfInterop
+    user32
+)
+
+add_test(
+    NAME P7_WinUI_Material_Render_Tests
+    COMMAND P7_WinUI_Material_Render_Tests
+)
