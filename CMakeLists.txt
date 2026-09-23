@@ -399,3 +399,38 @@ add_test(
         $<TARGET_FILE:P5_Win32_Sample>
         --scripted-smoke
 )
+
+# P6 Slice A - narrow native C ABI for WPF/PInvoke consumption of
+# the frozen AuroraGlass GlassMaterial model.
+add_library(AuroraGlassWpfInterop SHARED
+    adapters/wpf/wpf_material_bridge.cpp
+)
+
+target_include_directories(AuroraGlassWpfInterop PUBLIC
+    adapters
+)
+
+target_compile_features(AuroraGlassWpfInterop PUBLIC
+    cxx_std_20
+)
+
+target_compile_definitions(AuroraGlassWpfInterop PRIVATE
+    AURORAGLASS_WPF_INTEROP_EXPORTS
+)
+
+target_link_libraries(AuroraGlassWpfInterop PRIVATE
+    AuroraGlassMaterial
+)
+
+add_executable(P6_Wpf_Interop_Tests
+    tests/p6_wpf_interop_tests.cpp
+)
+
+target_link_libraries(P6_Wpf_Interop_Tests PRIVATE
+    AuroraGlassWpfInterop
+)
+
+add_test(
+    NAME P6_Wpf_Interop_Tests
+    COMMAND P6_Wpf_Interop_Tests
+)
