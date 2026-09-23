@@ -334,3 +334,16 @@ add_test(
     NAME P5_Win32_Attachment_Tests
     COMMAND P5_Win32_Attachment_Tests
 )
+
+add_executable(P5_Win32_Host_Metrics_Tests
+    tests/p5_win32_host_metrics_tests.cpp
+)
+
+target_link_libraries(P5_Win32_Host_Metrics_Tests PRIVATE
+    AuroraGlassWin32Adapter
+)
+
+add_test(
+    NAME P5_Win32_Host_Metrics_Tests
+    COMMAND P5_Win32_Host_Metrics_Tests
+)
