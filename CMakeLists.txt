@@ -631,3 +631,51 @@ add_test(
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/tests/p8_public_api_baseline.ps1" -SourceDir "${CMAKE_SOURCE_DIR}" -BuildDir "${CMAKE_BINARY_DIR}"
 )
 # P8_COMPATIBILITY_TESTS_END
+
+include(cmake/p8_sdk_install.cmake)
+# P8 Slice B - SDK package / external consumption.
+add_test(
+    NAME P8_SDK_Install_Layout
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_sdk_install_layout.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+set_tests_properties(
+    P8_SDK_Install_Layout
+    PROPERTIES TIMEOUT 60
+)
+
+add_test(
+    NAME P8_Fresh_Win32_Consumer
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_win32_consumer.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+set_tests_properties(
+    P8_Fresh_Win32_Consumer
+    PROPERTIES TIMEOUT 90
+)
+add_test(
+    NAME P8_Fresh_WPF_Consumer
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_wpf_consumer.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+set_tests_properties(
+    P8_Fresh_WPF_Consumer
+    PROPERTIES TIMEOUT 90
+)
+add_test(
+    NAME P8_Fresh_WinUI_Consumer
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_winui_consumer.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+set_tests_properties(
+    P8_Fresh_WinUI_Consumer
+    PROPERTIES TIMEOUT 120
+)

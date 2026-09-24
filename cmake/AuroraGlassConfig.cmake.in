@@ -1,0 +1,4 @@
+@PACKAGE_INIT@
+
+include("${CMAKE_CURRENT_LIST_DIR}/AuroraGlassTargets.cmake")
+set(AuroraGlass_VERSION "@AURORAGLASS_SDK_VERSION@")
