@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <AuroraGlassSdkVersion>$([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)..\VERSION').Trim())</AuroraGlassSdkVersion>
+    <Version>$(AuroraGlassSdkVersion)</Version>
+    <VersionPrefix>$(AuroraGlassSdkVersion)</VersionPrefix>
+    <PackageVersion>$(AuroraGlassSdkVersion)</PackageVersion>
+    <AssemblyVersion>$(AuroraGlassSdkVersion).0</AssemblyVersion>
+    <FileVersion>$(AuroraGlassSdkVersion).0</FileVersion>
+    <InformationalVersion>$(AuroraGlassSdkVersion)</InformationalVersion>
+    <IncludeSourceRevisionInInformationalVersion>false</IncludeSourceRevisionInInformationalVersion>
+  </PropertyGroup>
+</Project>

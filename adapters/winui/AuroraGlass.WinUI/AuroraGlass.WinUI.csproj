@@ -15,4 +15,5 @@
   <ItemGroup>
     <PackageReference Include="Microsoft.WindowsAppSDK" Version="2.5.1" />
   </ItemGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\eng\AuroraGlass.Version.props" />
 </Project>

@@ -1,0 +1,25 @@
+#pragma once
+
+#include <cstdint>
+#include <string_view>
+
+namespace AuroraGlass
+{
+struct AuroraGlassVersion final
+{
+    std::uint32_t major;
+    std::uint32_t minor;
+    std::uint32_t patch;
+    std::string_view string;
+};
+
+[[nodiscard]] inline constexpr AuroraGlassVersion GetAuroraGlassVersion() noexcept
+{
+    return AuroraGlassVersion{
+        @AURORAGLASS_VERSION_MAJOR@,
+        @AURORAGLASS_VERSION_MINOR@,
+        @AURORAGLASS_VERSION_PATCH@,
+        "@AURORAGLASS_SDK_VERSION@"
+    };
+}
+}

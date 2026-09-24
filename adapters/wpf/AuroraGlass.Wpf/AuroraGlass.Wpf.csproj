@@ -9,4 +9,5 @@
     <BaseOutputPath>../../../build/managed/AuroraGlass.Wpf/bin/</BaseOutputPath>
     <BaseIntermediateOutputPath>../../../build/managed/AuroraGlass.Wpf/obj/</BaseIntermediateOutputPath>
   </PropertyGroup>
+  <Import Project="$(MSBuildThisFileDirectory)..\..\..\eng\AuroraGlass.Version.props" />
 </Project>

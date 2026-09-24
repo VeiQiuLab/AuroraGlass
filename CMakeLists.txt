@@ -11,7 +11,7 @@ endif()
 
 # Pure-CPU material value type (GlassMaterial) is factored into its own small
 # library so that CPU-only consumers (Controls) can link it without pulling in
-# any D3D/GPU objects. No source or API change 閳?build organization only.
+# any D3D/GPU objects. No source or API change 闂?build organization only.
 add_library(AuroraGlassMaterial STATIC src/core/glass_material.cpp)
 target_include_directories(AuroraGlassMaterial PUBLIC src)
 
@@ -40,7 +40,7 @@ add_custom_command(TARGET P1_Smoke POST_BUILD
         ${CMAKE_SOURCE_DIR}/shaders
         $<TARGET_FILE_DIR:P1_Smoke>/shaders)
 
-# P1 visual parity sample 閳?sits alongside FROZEN p0_proof and p1_smoke.
+# P1 visual parity sample 闂?sits alongside FROZEN p0_proof and p1_smoke.
 # p0_proof = frozen P0 golden baseline (DO NOT MODIFY)
 # p1_smoke = runtime/API verification
 # p1_proof = P1 public API visual parity
@@ -71,7 +71,7 @@ add_custom_command(TARGET P1_Tests POST_BUILD
 add_test(NAME P1_Tests COMMAND P1_Tests)
 
 # ------------------------------------------------------------
-# P2 Slice 1 閳?repeated lifecycle stress (tests/ only; no API change).
+# P2 Slice 1 闂?repeated lifecycle stress (tests/ only; no API change).
 # ------------------------------------------------------------
 add_executable(P2_Stress_Tests tests/p2_stress_tests.cpp)
 target_link_libraries(P2_Stress_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler psapi)
@@ -82,7 +82,7 @@ add_custom_command(TARGET P2_Stress_Tests POST_BUILD
 add_test(NAME P2_Stress_Tests COMMAND P2_Stress_Tests)
 
 # ------------------------------------------------------------
-# P2 Slice 2 閳?resize / zero-size robustness (tests/ only).
+# P2 Slice 2 闂?resize / zero-size robustness (tests/ only).
 # ------------------------------------------------------------
 add_executable(P2_Resize_Tests tests/p2_resize_tests.cpp)
 target_link_libraries(P2_Resize_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
@@ -93,7 +93,7 @@ add_custom_command(TARGET P2_Resize_Tests POST_BUILD
 add_test(NAME P2_Resize_Tests COMMAND P2_Resize_Tests)
 
 # ------------------------------------------------------------
-# P2 Slice 5 閳?error-path coverage (tests/ only).
+# P2 Slice 5 闂?error-path coverage (tests/ only).
 # ------------------------------------------------------------
 add_executable(P2_ErrorPath_Tests tests/p2_errorpath_tests.cpp)
 target_link_libraries(P2_ErrorPath_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
@@ -104,13 +104,13 @@ add_custom_command(TARGET P2_ErrorPath_Tests POST_BUILD
 add_test(NAME P2_ErrorPath_Tests COMMAND P2_ErrorPath_Tests)
 
 # ------------------------------------------------------------
-# P2 diagnostic tool 閳?DebugView-style OutputDebugString capture
+# P2 diagnostic tool 闂?DebugView-style OutputDebugString capture
 # (used to inspect ReportLiveDeviceObjects output; not a sample).
 # ------------------------------------------------------------
 add_executable(P2_LiveObject_Capture tests/liveobject_capture.cpp)
 
 # ------------------------------------------------------------
-# P2 Slice 2 閳?resize/minimize/restore diagnostic host (new sample;
+# P2 Slice 2 闂?resize/minimize/restore diagnostic host (new sample;
 # does not modify frozen p0_proof / p1_smoke / p1_proof / p1_tests).
 # ------------------------------------------------------------
 add_executable(P2_Resize_Smoke samples/p2_resize_smoke/main.cpp)
@@ -121,7 +121,7 @@ add_custom_command(TARGET P2_Resize_Smoke POST_BUILD
         $<TARGET_FILE_DIR:P2_Resize_Smoke>/shaders)
 
 # ------------------------------------------------------------
-# P2 Slice 3 閳?DPI / multi-monitor validation host (host-only; DPI never
+# P2 Slice 3 闂?DPI / multi-monitor validation host (host-only; DPI never
 # enters Core). New sample; frozen baselines untouched.
 # ------------------------------------------------------------
 add_executable(P2_Dpi_Smoke samples/p2_dpi_smoke/main.cpp)
@@ -132,7 +132,7 @@ add_custom_command(TARGET P2_Dpi_Smoke POST_BUILD
         $<TARGET_FILE_DIR:P2_Dpi_Smoke>/shaders)
 
 # ------------------------------------------------------------
-# P2 Slice 4 閳?Core rendering performance baseline (offscreen).
+# P2 Slice 4 闂?Core rendering performance baseline (offscreen).
 # New sample; frozen baselines untouched.
 # ------------------------------------------------------------
 add_executable(P2_Bench samples/p2_bench/main.cpp)
@@ -143,7 +143,7 @@ add_custom_command(TARGET P2_Bench POST_BUILD
         $<TARGET_FILE_DIR:P2_Bench>/shaders)
 
 # ------------------------------------------------------------
-# P3 Slice A 閳?Controls geometry / state / input contract.
+# P3 Slice A 闂?Controls geometry / state / input contract.
 # PURE CPU: no D3D, no dxgi, no d3dcompiler, no HWND, no Core dependency.
 # Deliberately a separate library so a GPU dependency cannot creep in.
 # ------------------------------------------------------------
@@ -153,7 +153,7 @@ set(CONTROLS_SOURCES
 )
 add_library(AuroraGlassControls STATIC ${CONTROLS_SOURCES})
 target_include_directories(AuroraGlassControls PUBLIC src)
-# Controls depend on the GlassMaterial value type only (pure CPU) 閳?never on
+# Controls depend on the GlassMaterial value type only (pure CPU) 闂?never on
 # GlassSurface / D3D.
 target_link_libraries(AuroraGlassControls PUBLIC AuroraGlassMaterial)
 
@@ -161,13 +161,13 @@ add_executable(P3_Controls_Tests tests/p3_controls_tests.cpp)
 target_link_libraries(P3_Controls_Tests PRIVATE AuroraGlassControls)
 add_test(NAME P3_Controls_Tests COMMAND P3_Controls_Tests)
 
-# P3 Slice B 閳?state -> GlassMaterial mapping. Pure CPU; depends on the frozen
+# P3 Slice B 闂?state -> GlassMaterial mapping. Pure CPU; depends on the frozen
 # Core value type GlassMaterial (header-only) but NOT on GlassSurface/D3D.
 add_executable(P3_Style_Tests tests/p3_style_tests.cpp)
 target_link_libraries(P3_Style_Tests PRIVATE AuroraGlassControls)
 add_test(NAME P3_Style_Tests COMMAND P3_Style_Tests)
 
-# P3 Slice C 閳?multi-control batch path (PrepareFrame / RenderRect).
+# P3 Slice C 闂?multi-control batch path (PrepareFrame / RenderRect).
 add_executable(P3_Batch_Tests tests/p3_batch_tests.cpp)
 target_link_libraries(P3_Batch_Tests PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
 add_custom_command(TARGET P3_Batch_Tests POST_BUILD
@@ -199,7 +199,7 @@ add_custom_command(TARGET P3_Interactive_Smoke POST_BUILD
         ${CMAKE_SOURCE_DIR}/samples/p3_interactive_smoke/shaders
         $<TARGET_FILE_DIR:P3_Interactive_Smoke>/shaders)
 
-# P3 Slice C 閳?multi-control visual sample (new; frozen baselines untouched).
+# P3 Slice C 闂?multi-control visual sample (new; frozen baselines untouched).
 add_executable(P3_Controls_Smoke samples/p3_controls_smoke/main.cpp)
 target_link_libraries(P3_Controls_Smoke PRIVATE AuroraGlassCore d3d11 dxgi d3dcompiler)
 # Core glass shaders (shared).
@@ -603,3 +603,31 @@ set_tests_properties(
         WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
         TIMEOUT 30
 )
+
+# P8_VERSIONED_PUBLIC_API_BASELINE_BEGIN
+file(READ "${CMAKE_SOURCE_DIR}/VERSION" AURORAGLASS_SDK_VERSION)
+string(STRIP "${AURORAGLASS_SDK_VERSION}" AURORAGLASS_SDK_VERSION)
+string(REPLACE "." ";" AURORAGLASS_VERSION_PARTS "${AURORAGLASS_SDK_VERSION}")
+list(GET AURORAGLASS_VERSION_PARTS 0 AURORAGLASS_VERSION_MAJOR)
+list(GET AURORAGLASS_VERSION_PARTS 1 AURORAGLASS_VERSION_MINOR)
+list(GET AURORAGLASS_VERSION_PARTS 2 AURORAGLASS_VERSION_PATCH)
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated/auroraglass")
+configure_file("${CMAKE_SOURCE_DIR}/src/core/version.h.in" "${CMAKE_BINARY_DIR}/generated/auroraglass/version.h" @ONLY)
+target_include_directories(AuroraGlassCore PUBLIC "${CMAKE_BINARY_DIR}/generated")
+# P8_VERSIONED_PUBLIC_API_BASELINE_END
+
+# P8_COMPATIBILITY_TESTS_BEGIN
+add_executable(P8_Version_Tests "${CMAKE_SOURCE_DIR}/tests/p8_version_tests.cpp")
+target_link_libraries(P8_Version_Tests PRIVATE AuroraGlassCore)
+add_test(NAME P8_Version_Tests COMMAND P8_Version_Tests)
+
+add_custom_target(P8_Managed_Api_Tool ALL
+    COMMAND dotnet build "${CMAKE_SOURCE_DIR}/tests/p8_api_tool/P8.ApiTool.csproj" -c Debug --nologo
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+)
+
+add_test(
+    NAME P8_Public_API_Baseline
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/tests/p8_public_api_baseline.ps1" -SourceDir "${CMAKE_SOURCE_DIR}" -BuildDir "${CMAKE_BINARY_DIR}"
+)
+# P8_COMPATIBILITY_TESTS_END

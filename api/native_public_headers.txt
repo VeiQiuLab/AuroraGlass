@@ -1,0 +1,15 @@
+adapters/win32/win32_control_input_bridge.h
+adapters/win32/win32_host_attachment.h
+src/controls/control_button.h
+src/controls/control_geometry.h
+src/controls/control_interaction.h
+src/controls/control_slider.h
+src/controls/control_toggle.h
+src/controls/control_visual_style.h
+src/core/background_source.h
+src/core/glass_material.h
+src/core/glass_params.h
+src/core/glass_surface.h
+src/core/result.h
+src/motion/control_motion.h
+src/motion/motion.h
