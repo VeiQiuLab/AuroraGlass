@@ -62,7 +62,7 @@ docs/        Consumer and engineering documentation
 
 ## License
 
-Not yet declared. A license must be chosen before public release.
+Licensed under the [Apache License 2.0](LICENSE) (SPDX: `Apache-2.0`).
 
 ---
 

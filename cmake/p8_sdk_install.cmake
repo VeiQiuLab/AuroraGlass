@@ -76,6 +76,7 @@ install(
 )
 
 install(FILES "${CMAKE_SOURCE_DIR}/VERSION" DESTINATION ".")
+install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION ".")
 
 configure_package_config_file(
     "${CMAKE_SOURCE_DIR}/cmake/AuroraGlassConfig.cmake.in"
