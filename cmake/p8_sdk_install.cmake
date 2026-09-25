@@ -110,7 +110,7 @@ install(
 )
 # P8 WPF managed assembly
 install(
-    FILES "${CMAKE_BINARY_DIR}/managed/AuroraGlass.Wpf/bin/x64/$<CONFIG>/net10.0-windows/AuroraGlass.Wpf.dll"
+    FILES "${CMAKE_BINARY_DIR}/managed/AuroraGlass.Wpf/bin/$<CONFIG>/net10.0-windows/AuroraGlass.Wpf.dll"
     DESTINATION "managed/WPF/$<CONFIG>"
 )
 
