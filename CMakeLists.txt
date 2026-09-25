@@ -673,6 +673,31 @@ add_test(
         -SourceDir "${CMAKE_SOURCE_DIR}"
         -BuildDir "${CMAKE_BINARY_DIR}"
 )
+
+add_test(
+    NAME P8_Troubleshooting_Docs
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_troubleshooting_docs.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
+add_test(
+    NAME P8_Benchmark_Docs
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_benchmark_docs.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
+# P8 Slice D - CPU-only micro-benchmark harness (not a CTest assertion;
+# built by default, run manually to produce docs/BENCHMARKS.md numbers).
+add_executable(P8_Cpu_Benchmark "${CMAKE_SOURCE_DIR}/tests/p8_benchmark/main.cpp")
+target_link_libraries(P8_Cpu_Benchmark PRIVATE
+    AuroraGlassMaterial
+    AuroraGlassControls
+    AuroraGlassMotion
+)
 # P8_COMPATIBILITY_TESTS_END
 
 include(cmake/p8_sdk_install.cmake)
