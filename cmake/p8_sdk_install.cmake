@@ -77,6 +77,7 @@ install(
 
 install(FILES "${CMAKE_SOURCE_DIR}/VERSION" DESTINATION ".")
 install(FILES "${CMAKE_SOURCE_DIR}/LICENSE" DESTINATION ".")
+install(FILES "${CMAKE_SOURCE_DIR}/docs/SDK_ARCHIVE_README.md" DESTINATION "." RENAME "README.md")
 
 configure_package_config_file(
     "${CMAKE_SOURCE_DIR}/cmake/AuroraGlassConfig.cmake.in"
