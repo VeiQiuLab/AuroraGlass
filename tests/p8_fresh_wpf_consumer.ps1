@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$SourceDir,
-    [Parameter(Mandatory=$true)][string]$BuildDir
+    [Parameter(Mandatory=$true)][string]$BuildDir,
+    [string]$Config = "Debug"
 )
 
 $ErrorActionPreference="Stop"
@@ -12,20 +13,20 @@ foreach($p in @($stage,$work)){
     if(Test-Path $p){Remove-Item $p -Recurse -Force}
 }
 
-& cmake --install $BuildDir --config Debug --prefix $stage
+& cmake --install $BuildDir --config $Config --prefix $stage
 if($LASTEXITCODE){throw "INSTALL_FAIL"}
 
 Copy-Item (Join-Path $SourceDir "tests/p8_consumers/wpf") $work -Recurse
 
 New-Item -ItemType Directory -Force (Join-Path $work "sdk/shaders") | Out-Null
 
-Copy-Item (Join-Path $stage "managed/WPF/Debug/AuroraGlass.Wpf.dll") (Join-Path $work "sdk/")
-Copy-Item (Join-Path $stage "bin/Debug/AuroraGlassWpfInterop.dll") (Join-Path $work "sdk/")
+Copy-Item (Join-Path $stage "managed/WPF/$Config/AuroraGlass.Wpf.dll") (Join-Path $work "sdk/")
+Copy-Item (Join-Path $stage "bin/$Config/AuroraGlassWpfInterop.dll") (Join-Path $work "sdk/")
 Copy-Item (Join-Path $stage "shaders/*") (Join-Path $work "sdk/shaders/")
 
 $proj=Join-Path $work "P8FreshWpf.csproj"
 
-& dotnet build $proj -c Debug --nologo
+& dotnet build $proj -c $Config --nologo
 if($LASTEXITCODE){throw "BUILD_FAIL"}
 
 $exe=Get-ChildItem (Join-Path $work "bin") -Recurse -File -Filter "P8FreshWpf.exe" |

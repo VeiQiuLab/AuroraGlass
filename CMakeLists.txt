@@ -495,7 +495,7 @@ target_link_libraries(AuroraGlassWpfInterop PRIVATE
 add_custom_target(P6_WPF_Sample ALL
     COMMAND dotnet build
         "${CMAKE_SOURCE_DIR}/samples/p6_wpf_sample/P6.WpfSample.csproj"
-        -c Debug
+        -c $<CONFIG>
         --nologo
     DEPENDS
         AuroraGlassWpfInterop
@@ -607,7 +607,7 @@ add_test(
 add_custom_target(P7_WinUI_Sample ALL
     COMMAND dotnet build
         "${CMAKE_SOURCE_DIR}/samples/p7_winui_sample/P7.WinUISample.csproj"
-        -c Debug
+        -c $<CONFIG>
         -p:Platform=x64
         --nologo
     DEPENDS
@@ -649,13 +649,13 @@ target_link_libraries(P8_Version_Tests PRIVATE AuroraGlassCore)
 add_test(NAME P8_Version_Tests COMMAND P8_Version_Tests)
 
 add_custom_target(P8_Managed_Api_Tool ALL
-    COMMAND dotnet build "${CMAKE_SOURCE_DIR}/tests/p8_api_tool/P8.ApiTool.csproj" -c Debug --nologo
+    COMMAND dotnet build "${CMAKE_SOURCE_DIR}/tests/p8_api_tool/P8.ApiTool.csproj" -c $<CONFIG> --nologo
     WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
 )
 
 add_test(
     NAME P8_Public_API_Baseline
-    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/tests/p8_public_api_baseline.ps1" -SourceDir "${CMAKE_SOURCE_DIR}" -BuildDir "${CMAKE_BINARY_DIR}"
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/tests/p8_public_api_baseline.ps1" -SourceDir "${CMAKE_SOURCE_DIR}" -BuildDir "${CMAKE_BINARY_DIR}" -Config $<CONFIG>
 )
 
 add_test(
@@ -740,6 +740,7 @@ add_test(
         -File "${CMAKE_SOURCE_DIR}/tests/p8_sdk_install_layout.ps1"
         -SourceDir "${CMAKE_SOURCE_DIR}"
         -BuildDir "${CMAKE_BINARY_DIR}"
+        -Config $<CONFIG>
 )
 set_tests_properties(
     P8_SDK_Install_Layout
@@ -752,6 +753,7 @@ add_test(
         -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_win32_consumer.ps1"
         -SourceDir "${CMAKE_SOURCE_DIR}"
         -BuildDir "${CMAKE_BINARY_DIR}"
+        -Config $<CONFIG>
 )
 set_tests_properties(
     P8_Fresh_Win32_Consumer
@@ -763,6 +765,7 @@ add_test(
         -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_wpf_consumer.ps1"
         -SourceDir "${CMAKE_SOURCE_DIR}"
         -BuildDir "${CMAKE_BINARY_DIR}"
+        -Config $<CONFIG>
 )
 set_tests_properties(
     P8_Fresh_WPF_Consumer
@@ -774,6 +777,7 @@ add_test(
         -File "${CMAKE_SOURCE_DIR}/tests/p8_fresh_winui_consumer.ps1"
         -SourceDir "${CMAKE_SOURCE_DIR}"
         -BuildDir "${CMAKE_BINARY_DIR}"
+        -Config $<CONFIG>
 )
 set_tests_properties(
     P8_Fresh_WinUI_Consumer

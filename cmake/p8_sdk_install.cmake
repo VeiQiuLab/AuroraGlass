@@ -112,12 +112,12 @@ install(
 )
 # P8 WPF managed assembly
 install(
-    FILES "${CMAKE_BINARY_DIR}/managed/AuroraGlass.Wpf/bin/$<CONFIG>/net10.0-windows/AuroraGlass.Wpf.dll"
+    FILES "${CMAKE_SOURCE_DIR}/build/managed/AuroraGlass.Wpf/bin/$<CONFIG>/net10.0-windows/AuroraGlass.Wpf.dll"
     DESTINATION "managed/WPF/$<CONFIG>"
 )
 
 # P8 WinUI managed assembly
 install(
-    FILES "${CMAKE_BINARY_DIR}/managed/AuroraGlass.WinUI/bin/x64/$<CONFIG>/net10.0-windows10.0.19041.0/win-x64/AuroraGlass.WinUI.dll"
+    FILES "${CMAKE_SOURCE_DIR}/build/managed/AuroraGlass.WinUI/bin/x64/$<CONFIG>/net10.0-windows10.0.19041.0/win-x64/AuroraGlass.WinUI.dll"
     DESTINATION "managed/WinUI/$<CONFIG>"
 )

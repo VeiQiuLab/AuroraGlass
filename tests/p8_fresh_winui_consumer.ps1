@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$SourceDir,
-    [Parameter(Mandatory=$true)][string]$BuildDir
+    [Parameter(Mandatory=$true)][string]$BuildDir,
+    [string]$Config = "Debug"
 )
 
 $ErrorActionPreference="Stop"
@@ -14,21 +15,21 @@ foreach($p in @($stage,$work)){
     }
 }
 
-& cmake --install $BuildDir --config Debug --prefix $stage
+& cmake --install $BuildDir --config $Config --prefix $stage
 if($LASTEXITCODE){throw "INSTALL_FAIL"}
 
 Copy-Item (Join-Path $SourceDir "tests/p8_consumers/winui") $work -Recurse
 
 New-Item -ItemType Directory -Force (Join-Path $work "sdk/shaders") | Out-Null
 
-Copy-Item (Join-Path $stage "managed/WinUI/Debug/AuroraGlass.WinUI.dll") (Join-Path $work "sdk/")
-Copy-Item (Join-Path $stage "bin/Debug/AuroraGlassWinUIInterop.dll") (Join-Path $work "sdk/")
-Copy-Item (Join-Path $stage "bin/Debug/AuroraGlassWpfInterop.dll") (Join-Path $work "sdk/")
+Copy-Item (Join-Path $stage "managed/WinUI/$Config/AuroraGlass.WinUI.dll") (Join-Path $work "sdk/")
+Copy-Item (Join-Path $stage "bin/$Config/AuroraGlassWinUIInterop.dll") (Join-Path $work "sdk/")
+Copy-Item (Join-Path $stage "bin/$Config/AuroraGlassWpfInterop.dll") (Join-Path $work "sdk/")
 Copy-Item (Join-Path $stage "shaders/*") (Join-Path $work "sdk/shaders/")
 
 $proj=Join-Path $work "P8FreshWinUI.csproj"
 
-& dotnet build $proj -c Debug --nologo
+& dotnet build $proj -c $Config --nologo
 if($LASTEXITCODE){throw "BUILD_FAIL"}
 
 $exe=Get-ChildItem (Join-Path $work "bin") -Recurse -File -Filter "P8FreshWinUI.exe" |

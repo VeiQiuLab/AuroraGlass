@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$SourceDir,
-    [Parameter(Mandatory=$true)][string]$BuildDir
+    [Parameter(Mandatory=$true)][string]$BuildDir,
+    [string]$Config = "Debug"
 )
 
 $ErrorActionPreference="Stop"
@@ -12,7 +13,7 @@ if(Test-Path $stage){
     Remove-Item $stage -Recurse -Force
 }
 
-& cmake --install $BuildDir --config Debug --prefix $stage
+& cmake --install $BuildDir --config $Config --prefix $stage
 if($LASTEXITCODE){
     throw "INSTALL_FAILED"
 }
@@ -82,16 +83,16 @@ foreach($internal in @(
 }
 
 foreach($file in @(
-    "lib/Debug/AuroraGlassMaterial.lib",
-    "lib/Debug/AuroraGlassCore.lib",
-    "lib/Debug/AuroraGlassControls.lib",
-    "lib/Debug/AuroraGlassMotion.lib",
-    "lib/Debug/AuroraGlassMotionControls.lib",
-    "lib/Debug/AuroraGlassWin32Adapter.lib",
-    "bin/Debug/AuroraGlassWpfInterop.dll",
-    "bin/Debug/AuroraGlassWinUIInterop.dll",
-    "managed/WPF/Debug/AuroraGlass.Wpf.dll",
-    "managed/WinUI/Debug/AuroraGlass.WinUI.dll",
+    "lib/$Config/AuroraGlassMaterial.lib",
+    "lib/$Config/AuroraGlassCore.lib",
+    "lib/$Config/AuroraGlassControls.lib",
+    "lib/$Config/AuroraGlassMotion.lib",
+    "lib/$Config/AuroraGlassMotionControls.lib",
+    "lib/$Config/AuroraGlassWin32Adapter.lib",
+    "bin/$Config/AuroraGlassWpfInterop.dll",
+    "bin/$Config/AuroraGlassWinUIInterop.dll",
+    "managed/WPF/$Config/AuroraGlass.Wpf.dll",
+    "managed/WinUI/$Config/AuroraGlass.WinUI.dll",
     "lib/cmake/AuroraGlass/AuroraGlassConfig.cmake",
     "lib/cmake/AuroraGlass/AuroraGlassConfigVersion.cmake",
     "lib/cmake/AuroraGlass/AuroraGlassTargets.cmake",
@@ -101,8 +102,8 @@ foreach($file in @(
 }
 
 foreach($managed in @(
-    "managed/WPF/Debug/AuroraGlass.Wpf.dll",
-    "managed/WinUI/Debug/AuroraGlass.WinUI.dll"
+    "managed/WPF/$Config/AuroraGlass.Wpf.dll",
+    "managed/WinUI/$Config/AuroraGlass.WinUI.dll"
 )){
     $path=Resolve-Path (Join-Path $stage $managed)
 

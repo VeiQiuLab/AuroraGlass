@@ -1,6 +1,7 @@
 param(
     [Parameter(Mandatory=$true)][string]$SourceDir,
-    [Parameter(Mandatory=$true)][string]$BuildDir
+    [Parameter(Mandatory=$true)][string]$BuildDir,
+    [string]$Config = "Debug"
 )
 
 $ErrorActionPreference="Stop"
@@ -12,7 +13,7 @@ foreach($p in @($stage,$work)){
     if(Test-Path $p){Remove-Item $p -Recurse -Force}
 }
 
-& cmake --install $BuildDir --config Debug --prefix $stage
+& cmake --install $BuildDir --config $Config --prefix $stage
 if($LASTEXITCODE){throw "INSTALL_FAIL"}
 
 Copy-Item (Join-Path $SourceDir "tests/p8_consumers/win32") $work -Recurse
@@ -20,10 +21,10 @@ Copy-Item (Join-Path $SourceDir "tests/p8_consumers/win32") $work -Recurse
 & cmake -S $work -B (Join-Path $work "build") "-DCMAKE_PREFIX_PATH=$stage"
 if($LASTEXITCODE){throw "CONFIG_FAIL"}
 
-& cmake --build (Join-Path $work "build") --config Debug
+& cmake --build (Join-Path $work "build") --config $Config
 if($LASTEXITCODE){throw "BUILD_FAIL"}
 
-$out=Join-Path $work "build/Debug"
+$out=Join-Path $work "build/$Config"
 
 Copy-Item (Join-Path $stage "shaders") (Join-Path $out "shaders") -Recurse -Force
 
