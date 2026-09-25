@@ -17,3 +17,5 @@ Reserved for AuroraGlass implementation work. Create subdirectories/files only w
 - [Build and Consume](BUILD_AND_CONSUME.md) - staging the SDK and consuming it externally.
 - [Troubleshooting](TROUBLESHOOTING.md) - real SDK / runtime / DPI problems and fixes.
 - [Benchmarks](BENCHMARKS.md) - honest CPU and rendering-path measurements.
+- [Upgrading](UPGRADING.md) - what to check when moving between SDK versions.
+- [Versioning Rules](VERSIONING.md) - SemVer / pre-1.0 / ABI / package policy.

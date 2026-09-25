@@ -690,6 +690,22 @@ add_test(
         -BuildDir "${CMAKE_BINARY_DIR}"
 )
 
+add_test(
+    NAME P8_Upgrade_Notes
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_upgrade_notes.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
+add_test(
+    NAME P8_SemVer_Rules
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_semver_rules.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
 # P8 Slice D - CPU-only micro-benchmark harness (not a CTest assertion;
 # built by default, run manually to produce docs/BENCHMARKS.md numbers).
 add_executable(P8_Cpu_Benchmark "${CMAKE_SOURCE_DIR}/tests/p8_benchmark/main.cpp")
