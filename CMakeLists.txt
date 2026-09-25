@@ -490,6 +490,17 @@ target_link_libraries(AuroraGlassWpfInterop PRIVATE
     AuroraGlassCore
 )
 
+# Step 27D - airspace-safe WPF composition bridge.
+# Renders AuroraGlass offscreen into a shared D3D11<->D3D9Ex BGRA surface
+# exposed as an IDirect3DSurface9 for WPF D3DImage. No HwndHost, no WS_CHILD.
+target_sources(AuroraGlassWpfInterop PRIVATE
+    adapters/wpf/wpf_composition_bridge.cpp
+)
+
+target_link_libraries(AuroraGlassWpfInterop PRIVATE
+    d3d9
+)
+
 # P6 Slice E - formal WPF integration sample.
 # Consumes production AuroraGlass.Wpf + AuroraGlassWpfInterop only.
 add_custom_target(P6_WPF_Sample ALL
@@ -731,6 +742,17 @@ target_link_libraries(P8_Cpu_Benchmark PRIVATE
     AuroraGlassMotion
 )
 # P8_COMPATIBILITY_TESTS_END
+
+# Step 27D - airspace-safe WPF composition bridge (D3D11 -> D3D9Ex -> D3DImage).
+add_executable(P6_Wpf_Composition_Tests tests/p6_wpf_composition_tests.cpp)
+target_link_libraries(P6_Wpf_Composition_Tests PRIVATE
+    AuroraGlassWpfInterop
+)
+
+add_test(
+    NAME P6_Wpf_Composition_Tests
+    COMMAND P6_Wpf_Composition_Tests
+)
 
 include(cmake/p8_sdk_install.cmake)
 # P8 Slice B - SDK package / external consumption.

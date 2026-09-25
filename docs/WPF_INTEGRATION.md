@@ -163,7 +163,50 @@ P4 motion remains frozen in the native SDK, but the P6 WPF adapter does not curr
 
 No C# motion substitute is introduced, and this is not a P6 exit blocker.
 
-## 13. Minimal Checklist
+## 13. Composition Paths (HwndHost vs. D3DImage)
+
+AuroraGlass offers two managed WPF composition paths.
+
+### 13.1 WpfRenderHost (HwndHost path)
+
+`WpfRenderHost` derives from `HwndHost` and hosts a native child HWND. It is a
+valid choice when the AuroraGlass surface stands alone and no ordinary WPF
+controls need to sit on top of it.
+
+Because the render output is a native child HWND, it is subject to the standard
+WPF airspace limitation: a native child window always paints above the WPF
+visual tree. WPF controls placed over a full-window `WpfRenderHost` will be
+hidden and will not receive mouse input, regardless of Z-index.
+
+### 13.2 WpfGlassImageSource (D3DImage path)
+
+`WpfGlassImageSource` is the airspace-safe path. It renders AuroraGlass
+(D3D11/HLSL) offscreen into a shared BGRA surface and exposes it as a WPF
+`D3DImage` (an ordinary `ImageSource`). It creates **no HwndHost and no
+WS_CHILD window**, so normal WPF controls (text, buttons, settings) can be
+layered above it with correct hit-testing.
+
+Use this path when WPF controls must overlay the AuroraGlass surface:
+
+```csharp
+var glass = new WpfGlassImageSource(pixelWidth, pixelHeight);
+glass.SetMaterial(material);
+glass.SetPhysicalRects(new Rect(80, 80, 600, 360));
+glass.Start();                 // CompositionTarget.Rendering-driven frame loop
+
+// glass.ImageSource is an ordinary WPF ImageSource.
+image.Source = glass.ImageSource;
+image.IsHitTestVisible = false;   // let WPF controls above it receive clicks
+```
+
+Call `Resize(w, h)` on layout changes, `Stop()` when the surface is hidden,
+and `Dispose()` on teardown. The image `IsHitTestVisible` should be `false`
+when controls overlay it.
+
+Both paths use the same AuroraGlass D3D11/HLSL renderer and the same
+`WpfGlassMaterial`; only the presentation surface differs.
+
+## 14. Minimal Checklist
 
 - reference AuroraGlass.Wpf
 - deploy AuroraGlassWpfInterop.dll
@@ -171,7 +214,8 @@ No C# motion substitute is introduced, and this is not a P6 exit blocker.
 - consume CurrentMetrics and MetricsChanged
 - use DipToPhysical where physical rendering bounds are required
 - create WpfGlassMaterial
-- place WpfRenderHost in the visual tree
+- to overlay WPF controls: use WpfGlassImageSource (D3DImage path)
+- to host a standalone surface: place WpfRenderHost in the visual tree
 - attach WpfControlInputBridge
 - register Button, Toggle, and Slider
 - preserve the native P5/P3 semantic input route
