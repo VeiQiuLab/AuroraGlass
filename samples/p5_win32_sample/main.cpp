@@ -7,7 +7,7 @@
 #include <dxgi.h>
 #include <wrl/client.h>
 
-#include "core/d3d11_device.h"
+#include "sample_d3d11_host.h"
 #include "core/glass_material.h"
 #include "core/glass_surface.h"
 
@@ -43,7 +43,7 @@ constexpr wchar_t kClassName[] =
 constexpr wchar_t kWindowTitle[] =
     L"AuroraGlass P5 Fresh Win32 Integration";
 
-D3D11Device g_Device;
+SampleD3D11Host g_Device;
 GlassSurface g_Surface;
 
 ComPtr<ID3D11Texture2D> g_BackgroundTexture;
@@ -1214,7 +1214,6 @@ void ShutdownAuroraGlass()
     g_Device.swapChain.Reset();
     g_Device.context.Reset();
     g_Device.device.Reset();
-    g_Device.debugDevice.Reset();
 
     g_TeardownVerified =
         !g_InputBridge.IsAttached() &&

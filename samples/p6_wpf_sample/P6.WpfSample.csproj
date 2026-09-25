@@ -15,4 +15,11 @@
   <ItemGroup>
     <ProjectReference Include="../../adapters/wpf/AuroraGlass.Wpf/AuroraGlass.Wpf.csproj" />
   </ItemGroup>
+
+  <Target Name="CopyAuroraGlassNative" AfterTargets="Build">
+    <Copy
+      SourceFiles="../../build/Debug/AuroraGlassWpfInterop.dll"
+      DestinationFolder="$(OutDir)"
+      SkipUnchangedFiles="true" />
+  </Target>
 </Project>

@@ -490,6 +490,33 @@ target_link_libraries(AuroraGlassWpfInterop PRIVATE
     AuroraGlassCore
 )
 
+# P6 Slice E - formal WPF integration sample.
+# Consumes production AuroraGlass.Wpf + AuroraGlassWpfInterop only.
+add_custom_target(P6_WPF_Sample ALL
+    COMMAND dotnet build
+        "${CMAKE_SOURCE_DIR}/samples/p6_wpf_sample/P6.WpfSample.csproj"
+        -c Debug
+        --nologo
+    DEPENDS
+        AuroraGlassWpfInterop
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+    VERBATIM
+)
+
+add_test(
+    NAME P6_Wpf_Formal_Sample_Smoke
+    COMMAND
+        "${CMAKE_SOURCE_DIR}/build/managed/P6.WpfSample/bin/Debug/net10.0-windows/P6.WpfSample.exe"
+        --scripted
+)
+
+set_tests_properties(
+    P6_Wpf_Formal_Sample_Smoke
+    PROPERTIES
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        TIMEOUT 30
+)
+
 # P7 Slice A - WinUI 3 interop baseline.
 # WinUI owns the HWND. This narrow ABI directly reuses the frozen
 # P5 Win32HostAttachment production lifecycle without modifying P6.
@@ -629,6 +656,22 @@ add_custom_target(P8_Managed_Api_Tool ALL
 add_test(
     NAME P8_Public_API_Baseline
     COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File "${CMAKE_SOURCE_DIR}/tests/p8_public_api_baseline.ps1" -SourceDir "${CMAKE_SOURCE_DIR}" -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
+add_test(
+    NAME P8_Compatibility_Matrix
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_compatibility_matrix.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
+)
+
+add_test(
+    NAME P8_Sample_Maturity
+    COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass
+        -File "${CMAKE_SOURCE_DIR}/tests/p8_sample_maturity.ps1"
+        -SourceDir "${CMAKE_SOURCE_DIR}"
+        -BuildDir "${CMAKE_BINARY_DIR}"
 )
 # P8_COMPATIBILITY_TESTS_END
 
