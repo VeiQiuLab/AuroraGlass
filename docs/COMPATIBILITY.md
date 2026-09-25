@@ -60,6 +60,17 @@ The current machine is the authoritative validation environment for this Slice. 
 | Motion managed boundary | NOT EXPOSED | Motion is not currently exposed as a managed WinUI API surface. |
 | Release | NOT TESTED | No Release proof is claimed by P8 Slice C. |
 
+## External product validation
+
+- External product: AuroraPomodoro
+- Framework: WPF
+- Configuration: Debug x64
+- Dependency: AuroraGlass v0.8.0 release SDK archive
+- Result: Build PASS, runtime integration PASS, no AuroraGlass source-tree dependency
+
+This is a single external product's result and does not represent all consumer
+environments.
+
 ## Validation limits
 
 This matrix records what has actually been demonstrated by the repository and the current validation environment.

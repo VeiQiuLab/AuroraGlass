@@ -10,3 +10,7 @@ Rules:
 ## Items
 
 P9+ optional backlog exists but is not required for current release preparation.
+
+- Future packaging consideration: NuGet-style WPF/WinUI distribution to reduce
+  manual managed/native/shader deployment friction.
+  Classification: optional packaging improvement, not a v0.8.0 blocker.

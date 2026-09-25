@@ -12,7 +12,13 @@ Native interop library:
 
     AuroraGlassWpfInterop.dll
 
-Current consumption is source/build based. P6 does not define a NuGet packaging contract.
+AuroraGlass v0.8.0 provides a distributable Windows x64 SDK archive.
+WPF consumers can use the released SDK without referencing the AuroraGlass
+source tree.
+
+NuGet packaging is not currently provided.
+
+See docs/SDK_ARCHIVE_README.md for the archive consumption and deployment entry point.
 
 ## 2. Architecture
 
@@ -138,6 +144,16 @@ The P6 sample explicitly disposes owned adapter objects in this order:
 4. WPF and HwndHost destruction release the render child HWND
 
 The native path also handles WM_NCDESTROY as safety cleanup.
+
+### Shutdown lifecycle note
+
+The native child HWND may receive WM_NCDESTROY before Window.Closed handlers
+run. Consumers should not assume WpfHostAttachment is still attached inside
+Window.Closed.
+
+Cleanup/detach must be treated as idempotent, and an already-detached state is
+valid during shutdown. This is expected behavior, not a defect. The exact event
+ordering is not guaranteed.
 
 ## 12. Motion Status
 

@@ -53,15 +53,17 @@ target_link_libraries(MyApp PRIVATE AuroraGlass::AuroraGlassWin32Adapter)
 
 ## WPF
 
-This archive contains the WPF managed assembly and its native interop runtime:
+A WPF application requires **all three** of the following at deployment/runtime:
 
 ```text
-managed/WPF/Debug/AuroraGlass.Wpf.dll
-bin/Debug/AuroraGlassWpfInterop.dll
+1. managed/WPF/Debug/AuroraGlass.Wpf.dll   (managed assembly)
+2. bin/Debug/AuroraGlassWpfInterop.dll     (native interop DLL)
+3. shaders/                                (runtime shader resources)
 ```
 
-Reference the managed assembly from your WPF application and deploy the native
-interop DLL next to your application output. No NuGet package is used.
+Reference the managed assembly from your WPF application, and deploy the native
+interop DLL together with the `shaders/` runtime resources next to your
+application output. None of the three can be omitted. No NuGet package is used.
 
 ## WinUI 3
 
