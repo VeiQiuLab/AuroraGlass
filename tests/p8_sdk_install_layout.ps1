@@ -101,6 +101,10 @@ foreach($file in @(
     Need (Join-Path $stage $file)
 }
 
+# Expected managed assembly version derives from canonical VERSION (x.y.z -> x.y.z.0).
+$vp=$version.Split(".")
+$expMajor=[int]$vp[0]; $expMinor=[int]$vp[1]; $expBuild=[int]$vp[2]
+
 foreach($managed in @(
     "managed/WPF/$Config/AuroraGlass.Wpf.dll",
     "managed/WinUI/$Config/AuroraGlass.WinUI.dll"
@@ -112,15 +116,16 @@ foreach($managed in @(
     ).Version
 
     if(
-        $av.Major -ne 0 -or
-        $av.Minor -ne 8 -or
-        $av.Build -ne 0
+        $av.Major -ne $expMajor -or
+        $av.Minor -ne $expMinor -or
+        $av.Build -ne $expBuild
     ){
         throw (
             "MANAGED_VERSION_MISMATCH=" +
             $managed +
             ":" +
-            $av
+            $av +
+            " expected=" + $version
         )
     }
 }

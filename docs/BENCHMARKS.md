@@ -32,7 +32,7 @@ performance claim.
 | GPU driver | 32.0.31041.1004 |
 | Display mode at test time | 2560x1440 |
 | Build toolchain | MSVC (Visual Studio 17 2022), CMake 4.4.3 |
-| SDK version | 0.8.0 |
+| SDK version | 0.8.1 |
 | Runtime contract | native HWND DPI; Debug validated, Release NOT TESTED as an SDK claim |
 
 ## Methodology

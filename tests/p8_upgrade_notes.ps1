@@ -23,8 +23,9 @@ foreach($needle in @(
     if($text -notmatch [regex]::Escape($needle)){ throw ("SECTION_MISSING=" + $needle) }
 }
 
-# Current version / pre-1.0 status must be accurate.
-if($text -notmatch [regex]::Escape("SDK version: **0.8.0**")){ throw "VERSION_STATUS_MISSING" }
+# Current version / pre-1.0 status must be accurate (version from canonical VERSION).
+$version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
+if($text -notmatch [regex]::Escape("SDK version: **$version**")){ throw "VERSION_STATUS_MISSING" }
 if($text -notmatch [regex]::Escape("Status: **pre-1.0**")){ throw "PRE1_STATUS_MISSING" }
 if($text -match [regex]::Escape("1.0 stable")){ throw "FALSE_STABLE_CLAIM" }
 

@@ -15,7 +15,7 @@ reimplementing the effect. AuroraGlass is **not** a general-purpose UI framework
 
 ## Current SDK version
 
-`0.8.0`
+`0.8.1`
 
 The canonical version source is the root `VERSION` file. See
 [Versioning Rules](docs/VERSIONING.md).
@@ -25,7 +25,7 @@ The canonical version source is the root `VERSION` file. See
 ```text
 cmake -S . -B build
 cmake --build build --config Debug
-cmake --install build --config Debug --prefix build/sdk-stage/AuroraGlass-0.8.0
+cmake --install build --config Debug --prefix build/sdk-stage/AuroraGlass-0.8.1
 ```
 
 Full build and external-consumption instructions:

@@ -8,7 +8,7 @@ Status vocabulary used here is the same as the compatibility matrix:
 VALIDATED / SUPPORTED BY DESIGN BUT NOT VALIDATED / NOT TESTED / NOT SUPPORTED.
 
 The canonical SDK version is read from the repository root VERSION file
-(currently 0.8.0).
+(currently 0.8.1).
 
 ---
 
@@ -21,7 +21,7 @@ The canonical SDK version is read from the repository root VERSION file
   staged prefix was never produced.
 - How to verify: confirm lib/cmake/AuroraGlass/AuroraGlassConfig.cmake exists
   under the staged prefix, and that the prefix you passed is the stage root
-  (build/sdk-stage/AuroraGlass-0.8.0), not its lib or include subdir.
+  (build/sdk-stage/AuroraGlass-0.8.1), not its lib or include subdir.
 - Fix: stage the SDK (cmake --install build --config Debug --prefix <stage>)
   and point CMake at the stage root with -DCMAKE_PREFIX_PATH=<stage>.
 
@@ -341,7 +341,7 @@ build error behind these; if a build fails, treat the error, not the warning.
 
 Work top to bottom:
 
-- [ ] VERSION / SDK layout correct (staged VERSION matches 0.8.0)
+- [ ] VERSION / SDK layout correct (staged VERSION matches the canonical VERSION)
 - [ ] Native bridge DLL present next to the executable
 - [ ] shader / runtime resources present (shaders/glass.hlsl reachable)
 - [ ] correct config (Debug/Release matches the staged config; P8 validates Debug)

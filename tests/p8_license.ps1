@@ -25,12 +25,13 @@ $readme=Get-Content (Join-Path $SourceDir "README.md") -Raw
 if($readme -notmatch "Apache"){ throw "README_LICENSE_MISSING" }
 if($readme -notmatch "Apache-2.0"){ throw "README_SPDX_MISSING" }
 
-# 3. VERSION unchanged.
+# 3. VERSION is a well-formed x.y.z (canonical source of truth).
 $version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
-if($version -ne "0.8.0"){ throw ("VERSION_MISMATCH=" + $version) }
+$parsed=$null
+if(-not [version]::TryParse($version, [ref]$parsed)){ throw ("VERSION_MALFORMED=" + $version) }
 
 # 4. Staged SDK includes LICENSE (only if a stage exists).
-$stage=Join-Path $BuildDir "sdk-stage/AuroraGlass-0.8.0"
+$stage=Join-Path $BuildDir ("sdk-stage/AuroraGlass-" + $version)
 if(Test-Path $stage){
     if(!(Test-Path (Join-Path $stage "LICENSE"))){ throw "STAGE_LICENSE_MISSING" }
 }

@@ -10,8 +10,9 @@ $srcDoc=Join-Path $SourceDir "docs/SDK_ARCHIVE_README.md"
 if(!(Test-Path $srcDoc)){ throw "SDK_ARCHIVE_README_SOURCE_MISSING" }
 $src=Get-Content $srcDoc -Raw
 
-# 2. Required accuracy markers.
-foreach($m in @("AuroraGlass","0.8.0","Windows","x64","Debug","Apache-2.0")){
+# 2. Required accuracy markers (version read from canonical VERSION).
+$version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
+foreach($m in @("AuroraGlass",$version,"Windows","x64","Debug","Apache-2.0")){
     if($src -notmatch [regex]::Escape($m)){ throw ("SOURCE_MARKER_MISSING=" + $m) }
 }
 
@@ -22,7 +23,7 @@ foreach($bad in @("v1.0","NuGet install","dotnet add package","Install-Package")
 if($src -match "production Release configuration"){ throw "FALSE_RELEASE_CLAIM" }
 
 # 4. Installed SDK root README (only if a stage exists).
-$stage=Join-Path $BuildDir "sdk-stage/AuroraGlass-0.8.0"
+$stage=Join-Path $BuildDir ("sdk-stage/AuroraGlass-" + $version)
 if(Test-Path $stage){
     $inst=Join-Path $stage "README.md"
     if(!(Test-Path $inst)){ throw "INSTALLED_README_MISSING" }
@@ -30,8 +31,8 @@ if(Test-Path $stage){
     if($t -notmatch [regex]::Escape("AuroraGlass")){ throw "INSTALLED_README_CONTENT" }
 }
 
-# 5. VERSION unchanged.
-$version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
-if($version -ne "0.8.0"){ throw ("VERSION_MISMATCH=" + $version) }
+# 5. VERSION is well-formed.
+$parsed=$null
+if(-not [version]::TryParse($version, [ref]$parsed)){ throw ("VERSION_MALFORMED=" + $version) }
 
 Write-Output "P8_SDK_ARCHIVE_README=PASS"

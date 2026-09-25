@@ -12,7 +12,7 @@ Native interop library:
 
     AuroraGlassWpfInterop.dll
 
-AuroraGlass v0.8.0 provides a distributable Windows x64 SDK archive.
+AuroraGlass v0.8.1 provides a distributable Windows x64 SDK archive (Release and Debug).
 WPF consumers can use the released SDK without referencing the AuroraGlass
 source tree.
 

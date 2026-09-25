@@ -77,7 +77,9 @@ foreach(Type t in types.OrderBy(t=>t.FullName,StringComparer.Ordinal))
         lines.Add("EVENT|"+tn+"|"+e.Name+":"+N(e.EventHandlerType!));
 }
 
-string[] actual=lines.Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
+// ASSEMBLY_VERSION is version metadata (tracks VERSION), not API shape.
+// Exclude it from the baseline diff so the api/ baseline is version-robust.
+string[] actual=lines.Where(x=>!x.StartsWith("ASSEMBLY_VERSION|",StringComparison.Ordinal)).Distinct(StringComparer.Ordinal).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
 
 if(mode=="snapshot")
 {
@@ -87,7 +89,7 @@ if(mode=="snapshot")
     return 0;
 }
 
-string[] expected=File.ReadAllLines(manifest).Where(x=>x.Length>0).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
+string[] expected=File.ReadAllLines(manifest).Where(x=>x.Length>0 && !x.StartsWith("ASSEMBLY_VERSION|",StringComparison.Ordinal)).OrderBy(x=>x,StringComparer.Ordinal).ToArray();
 
 if(!actual.SequenceEqual(expected,StringComparer.Ordinal))
 {

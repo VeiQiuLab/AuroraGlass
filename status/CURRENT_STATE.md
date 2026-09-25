@@ -4,7 +4,7 @@
 
 - **P0–P8: COMPLETE / FROZEN**
 - **p8-frozen:** `73be93fd8a86eb76bf84d7163d32bd607420749b`
-- **VERSION:** `0.8.0`
+- **VERSION:** `0.8.1`
 - **P9+:** OPTIONAL / NOT STARTED
 
 ## Current activity

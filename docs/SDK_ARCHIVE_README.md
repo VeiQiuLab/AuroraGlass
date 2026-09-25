@@ -1,4 +1,4 @@
-# AuroraGlass 0.8.0
+# AuroraGlass 0.8.1
 
 A reusable **Windows Liquid Glass UI SDK**.
 
@@ -7,16 +7,20 @@ A reusable **Windows Liquid Glass UI SDK**.
 - **Adapters:** Win32, WPF, WinUI 3
 - **License:** Apache-2.0
 
-This archive contains the **validated Debug SDK configuration**.
+This archive contains the **validated Release SDK configuration**.
 It is a developer SDK artifact (headers, libraries, managed assemblies,
 native interop DLLs, CMake package files, shaders), not an end-user installer.
+
+Both **Release** and **Debug** SDK configurations are validated. This archive
+ships the **Release** binaries under `lib/Release/`, `bin/Release/`, and
+`managed/*/Release/`.
 
 ## Native quick start (CMake)
 
 Point CMake at the extracted SDK directory via `CMAKE_PREFIX_PATH`:
 
 ```text
-cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/SDK/AuroraGlass-0.8.0"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/SDK/AuroraGlass-0.8.1"
 ```
 
 Then consume AuroraGlass in your `CMakeLists.txt`:
@@ -44,7 +48,7 @@ AuroraGlass::AuroraGlassWin32Adapter
 ### Win32
 
 Win32 consumers use the installed public headers (`include/`), libraries
-(`lib/Debug/`), and the AuroraGlass CMake targets above. For host-window
+(`lib/Release/`), and the AuroraGlass CMake targets above. For host-window
 integration, link the exported adapter target:
 
 ```cmake
@@ -56,22 +60,25 @@ target_link_libraries(MyApp PRIVATE AuroraGlass::AuroraGlassWin32Adapter)
 A WPF application requires **all three** of the following at deployment/runtime:
 
 ```text
-1. managed/WPF/Debug/AuroraGlass.Wpf.dll   (managed assembly)
-2. bin/Debug/AuroraGlassWpfInterop.dll     (native interop DLL)
-3. shaders/                                (runtime shader resources)
+1. managed/WPF/Release/AuroraGlass.Wpf.dll   (managed assembly)
+2. bin/Release/AuroraGlassWpfInterop.dll     (native interop DLL)
+3. shaders/                                  (runtime shader resources)
 ```
 
 Reference the managed assembly from your WPF application, and deploy the native
 interop DLL together with the `shaders/` runtime resources next to your
 application output. None of the three can be omitted. No NuGet package is used.
 
+The Release native interop DLL requires the **Microsoft Visual C++ x64
+Redistributable** to be present on the target machine.
+
 ## WinUI 3
 
 This archive contains the WinUI managed assembly and its native interop runtime:
 
 ```text
-managed/WinUI/Debug/AuroraGlass.WinUI.dll
-bin/Debug/AuroraGlassWinUIInterop.dll
+managed/WinUI/Release/AuroraGlass.WinUI.dll
+bin/Release/AuroraGlassWinUIInterop.dll
 ```
 
 Reference the managed assembly from your WinUI 3 application and deploy the
@@ -86,8 +93,8 @@ as documented; do not omit them when copying the SDK.
 
 ## Compatibility notes
 
-- Validated configuration: **Debug / Windows x64**.
-- Release SDK compatibility: **NOT TESTED**.
+- Validated configuration: **Release and Debug / Windows x64**.
+- Release SDK compatibility: **VALIDATED**.
 - Real cross-monitor DPI transition: **NOT TESTED**.
 - WPF and WinUI 3 managed Motion boundary: **NOT EXPOSED**.
 

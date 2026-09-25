@@ -27,7 +27,7 @@ foreach($needle in @(
 foreach($needle in @(
     "Motion managed boundary | NOT EXPOSED",
     "Cross-monitor DPI transition | NOT TESTED",
-    "Release | NOT TESTED"
+    "Release | VALIDATED"
 )){
     if($text -notmatch [regex]::Escape($needle)){
         throw ("FACT_MISSING=" + $needle)

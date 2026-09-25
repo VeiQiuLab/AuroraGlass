@@ -10,7 +10,7 @@
 ## Current validated environment
 
 - Architecture: x64
-- Configuration: Debug
+- Configuration: Debug (VALIDATED) and Release (VALIDATED)
 - Native graphics: Direct3D 11
 - Generator: Visual Studio 17 2022 x64
 - Visual Studio Build Tools: 17.14.37614.0
@@ -26,8 +26,8 @@ The current machine is the authoritative validation environment for this Slice. 
 | Item | Status | Notes |
 | --- | --- | --- |
 | x64 | VALIDATED | Current build and tests run as x64. |
-| Debug | VALIDATED | Current full validation baseline. |
-| Release | NOT TESTED | No Release proof is claimed by P8 Slice C. |
+| Debug | VALIDATED | Full Debug validation baseline. |
+| Release | VALIDATED | Release x64 SDK enabled and validated (build, install, external consumers, full CTest). |
 | Direct3D 11 | VALIDATED | Core and Win32 sample paths exercise D3D11. |
 | Hardware D3D11 device | VALIDATED | Normal execution path. |
 | WARP fallback | SUPPORTED BY DESIGN BUT NOT VALIDATED | Present in the Win32 sample host fallback path. |
@@ -43,7 +43,7 @@ The current machine is the authoritative validation environment for this Slice. 
 | Host lifecycle | VALIDATED | P6 lifecycle tests pass. |
 | Metrics / input | VALIDATED | P6 metrics/input tests pass. |
 | Motion managed boundary | NOT EXPOSED | Motion is not currently exposed as a managed WPF API surface. |
-| Release | NOT TESTED | No Release proof is claimed by P8 Slice C. |
+| Release | VALIDATED | Release WPF external consumer passes. |
 
 ## WinUI
 
@@ -58,7 +58,16 @@ The current machine is the authoritative validation environment for this Slice. 
 | Material rendering | VALIDATED | P7 material render tests pass. |
 | Formal sample smoke | VALIDATED | P7 formal sample smoke passes. |
 | Motion managed boundary | NOT EXPOSED | Motion is not currently exposed as a managed WinUI API surface. |
-| Release | NOT TESTED | No Release proof is claimed by P8 Slice C. |
+| Release | VALIDATED | Release WinUI external consumer passes. |
+
+## Release SDK validation (0.8.1)
+
+- Release x64 SDK: VALIDATED (build, install, Debug-CRT-free interop binaries)
+- Release Win32 external consumer: PASS
+- Release WPF external consumer: PASS
+- Release WinUI external consumer: PASS
+- Release effective full CTest: 39/39 PASS
+- Release interop binaries require the Microsoft Visual C++ x64 Redistributable.
 
 ## External product validation
 
@@ -77,7 +86,7 @@ This matrix records what has actually been demonstrated by the repository and th
 
 It does not convert architectural intent into runtime proof. In particular:
 
-- Debug validation does not imply Release validation.
+- Debug and Release are each validated independently; validating one does not automatically validate the other.
 - The declared Windows minimum version does not mean that minimum version was executed.
 - Real cross-monitor DPI transitions remain untested.
 - WPF and WinUI managed Motion APIs are not exposed.

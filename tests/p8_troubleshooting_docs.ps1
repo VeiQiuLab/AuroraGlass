@@ -28,13 +28,14 @@ foreach($needle in @(
     }
 }
 
-# Required factual statements.
+# Required factual statements (version from canonical VERSION).
+$version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
 foreach($needle in @(
     "api/native_public_headers.txt",
     "NOT EXPOSED",
     "Real cross-monitor DPI transition is NOT TESTED",
     "Authoritative DPI is the native HWND DPI",
-    "0.8.0"
+    $version
 )){
     if($text -notmatch [regex]::Escape($needle)){
         throw ("FACT_MISSING=" + $needle)

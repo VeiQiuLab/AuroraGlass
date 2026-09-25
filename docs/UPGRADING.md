@@ -6,7 +6,7 @@ and how to refresh a staged SDK safely. It is not a changelog.
 
 ## Current version status
 
-- SDK version: **0.8.0**
+- SDK version: **0.8.1**
 - Status: **pre-1.0**
 - Version source: the repository root `VERSION` file.
 
@@ -107,7 +107,7 @@ event (see `docs/VERSIONING.md`).
 
 ## Pre-1.0 warning
 
-Because the current version is 0.8.0, the pre-1.0 policy applies:
+Because the current version is 0.8.1, the pre-1.0 policy applies:
 
 > 0.x releases may still contain intentional breaking API changes, but such
 > changes must follow the repository's documented SemVer/pre-1.0 policy and
@@ -116,6 +116,15 @@ Because the current version is 0.8.0, the pre-1.0 policy applies:
 This is deliberately not 'anything can break at any time'. AuroraGlass already
 has a frozen public baseline, and breaking changes are constrained (MINOR-only,
 never silent PATCH).
+
+## Upgrading to 0.8.1
+
+No public API migration is required.
+
+0.8.1 adds a validated distributable Release x64 SDK configuration and removes
+the Debug CRT distribution blocker from the Release interop binaries.
+
+Release interop binaries require the Microsoft Visual C++ x64 Redistributable.
 
 ## Upgrading to 0.8.0
 

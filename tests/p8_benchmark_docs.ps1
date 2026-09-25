@@ -48,8 +48,9 @@ if($text -notmatch [regex]::Escape("It is NOT a rendering throughput")){
 $harness=Join-Path $SourceDir "tests/p8_benchmark/main.cpp"
 if(!(Test-Path $harness)){ throw "BENCHMARK_HARNESS_MISSING" }
 
-# Environment must record build config / SDK version.
-foreach($needle in @("SDK version", "0.8.0")){
+# Environment must record build config / SDK version (from canonical VERSION).
+$version=(Get-Content (Join-Path $SourceDir "VERSION") -Raw).Trim()
+foreach($needle in @("SDK version", $version)){
     if($text -notmatch [regex]::Escape($needle)){
         throw ("ENV_MISSING=" + $needle)
     }
