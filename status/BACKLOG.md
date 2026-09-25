@@ -9,4 +9,4 @@ Rules:
 
 ## Items
 
-- None yet.
+P9+ optional backlog exists but is not required for current release preparation.

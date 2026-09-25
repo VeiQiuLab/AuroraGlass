@@ -8,7 +8,7 @@ Do not redesign AuroraGlass from first principles. The repository planning docum
 
 1. Read `START_HERE.md`.
 2. Read every file required by its reading order.
-3. Read `status/ACTIVE_AGENT.md` and `status/CURRENT_STATE.md`.
+3. Read `../status/ACTIVE_AGENT.md` and `../status/CURRENT_STATE.md`.
 4. Before editing, state:
    - current Phase;
    - exact Phase goal;
@@ -16,7 +16,7 @@ Do not redesign AuroraGlass from first principles. The repository planning docum
    - explicit non-goals;
    - acceptance checks to run.
 5. Implement only the active Phase.
-6. When the Phase gate is reached, write/update `status/LAST_GATE_REPORT.md` and STOP.
+6. When the Phase gate is reached, write/update `../status/LAST_GATE_REPORT.md` and STOP.
 
 ## Multimodal use
 
@@ -26,6 +26,6 @@ Visual evidence does not grant permission to add new features, redesign the arch
 
 ## No self-expansion
 
-If a useful idea belongs to a later Phase, add a short entry to `status/BACKLOG.md`. Do not implement it.
+If a useful idea belongs to a later Phase, add a short entry to `../status/BACKLOG.md`. Do not implement it.
 
 If a proposed change conflicts with the architecture or mainline, create an ADR proposal and stop for owner review.

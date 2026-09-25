@@ -2,18 +2,18 @@
 
 These instructions apply to the active implementation agent.
 
-For this workspace, the primary and only implementation model is **Qwen3.8-Max** unless the project owner explicitly changes `status/ACTIVE_AGENT.md`.
+For this workspace, the primary and only implementation model is **Qwen3.8-Max** unless the project owner explicitly changes `../status/ACTIVE_AGENT.md`.
 
 ## Required reading order
 
 Before editing code, read:
 
-1. `PROJECT_MAINLINE.md`
-2. `SCOPE_GUARDRAILS.md`
-3. `ROADMAP.md`
+1. `../PROJECT_MAINLINE.md`
+2. `../SCOPE_GUARDRAILS.md`
+3. `../ROADMAP.md`
 4. `PHASE_GATE.md`
-5. `status/CURRENT_STATE.md`
-6. relevant ADRs in `decisions/`
+5. `../status/CURRENT_STATE.md`
+6. relevant ADRs in `../decisions/`
 
 ## Primary objective
 
@@ -23,9 +23,9 @@ Do not reinterpret the project as a general-purpose UI framework.
 
 ## Current-phase lock
 
-Only implement requirements belonging to the phase identified in `status/CURRENT_STATE.md` unless the user explicitly instructs otherwise.
+Only implement requirements belonging to the phase identified in `../status/CURRENT_STATE.md` unless the user explicitly instructs otherwise.
 
-Later-phase ideas go to `status/BACKLOG.md`. Do not implement them early.
+Later-phase ideas go to `../status/BACKLOG.md`. Do not implement them early.
 
 ## No silent scope expansion
 
@@ -54,7 +54,7 @@ Examples of prohibited unsolicited expansion:
 
 ## Change discipline
 
-Avoid unrelated cleanup while implementing a phase. If cleanup is desirable but not required, record it in `status/BACKLOG.md`.
+Avoid unrelated cleanup while implementing a phase. If cleanup is desirable but not required, record it in `../status/BACKLOG.md`.
 
 For a major architecture change:
 1. Stop implementation.

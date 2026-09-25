@@ -4,16 +4,16 @@ If you are Qwen3.8-Max working on this repository, do not begin by redesigning t
 
 ## Read in this order
 
-1. `PROJECT_MAINLINE.md`
-2. `SCOPE_GUARDRAILS.md`
-3. `TECH_BASELINE.md`
-4. `ARCHITECTURE.md`
-5. `ROADMAP.md`
+1. `../PROJECT_MAINLINE.md`
+2. `../SCOPE_GUARDRAILS.md`
+3. `../TECH_BASELINE.md`
+4. `../ARCHITECTURE.md`
+5. `../ROADMAP.md`
 6. `PHASE_GATE.md`
 7. `AGENTS.md`
 8. `QWEN_MAX.md`
-9. `status/ACTIVE_AGENT.md`
-10. `status/CURRENT_STATE.md`
+9. `../status/ACTIVE_AGENT.md`
+10. `../status/CURRENT_STATE.md`
 
 Then work only on the current Phase.
 
