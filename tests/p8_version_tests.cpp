@@ -5,7 +5,7 @@ int main()
 {
     constexpr auto v = AuroraGlass::GetAuroraGlassVersion();
     static_assert(v.major == 0);
-    static_assert(v.minor == 8);
-    static_assert(v.patch == 1);
-    return v.string == std::string_view{"0.8.1"} ? 0 : 1;
+    static_assert(v.minor == 9);
+    static_assert(v.patch == 0);
+    return v.string == std::string_view{"0.9.0"} ? 0 : 1;
 }

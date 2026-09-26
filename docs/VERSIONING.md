@@ -17,7 +17,7 @@ source anywhere):
 - managed assembly / package metadata
 - release artifact naming
 
-Current value: `0.8.1`.
+Current value: `0.9.0`.
 
 ## 2. What counts as public contract
 
@@ -91,7 +91,7 @@ Before 1.0.0 the MAJOR number stays 0; the pre-1.0 policy in section 6 applies.
 
 ## 6. Pre-1.0 policy
 
-Current version: `0.8.1`.
+Current version: `0.9.0`.
 
 - PATCH: MUST remain backward-compatible.
 - MINOR: may introduce intentional breaking public changes, but only with an

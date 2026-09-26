@@ -69,6 +69,25 @@ The current machine is the authoritative validation environment for this Slice. 
 - Release effective full CTest: 39/39 PASS
 - Release interop binaries require the Microsoft Visual C++ x64 Redistributable.
 
+## WPF D3DImage composition validation (0.9.0)
+
+The airspace-safe WPF composition bridge (`WpfGlassImageSource`, D3D11 ->
+shared BGRA -> D3D9Ex -> WPF D3DImage) is VALIDATED:
+
+- Native composition tests: PASS
+- WPF composition proof consumer: PASS
+- Real hardware mouse click on WPF controls above the glass: PASS
+- No HwndHost / no native child HWND in the composition path
+- Real-product integration (AuroraPomodoro): PASS
+- Resize: PASS
+- Minimize/restore: PASS
+- Tray restore: PASS
+
+Known non-blocking behavior: `CompositionTarget.Rendering` may continue while a
+consumer window is minimized unless the consumer calls `Stop()`. Consumers should
+call `Stop()` when hidden/minimized and `Start()` when restored/visible. This is
+a scheduling note, not a correctness bug.
+
 ## External product validation
 
 - External product: AuroraPomodoro

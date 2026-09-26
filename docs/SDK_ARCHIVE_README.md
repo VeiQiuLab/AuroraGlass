@@ -1,4 +1,4 @@
-# AuroraGlass 0.8.1
+# AuroraGlass 0.9.0
 
 A reusable **Windows Liquid Glass UI SDK**.
 
@@ -20,7 +20,7 @@ ships the **Release** binaries under `lib/Release/`, `bin/Release/`, and
 Point CMake at the extracted SDK directory via `CMAKE_PREFIX_PATH`:
 
 ```text
-cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/SDK/AuroraGlass-0.8.1"
+cmake -S . -B build -DCMAKE_PREFIX_PATH="C:/SDK/AuroraGlass-0.9.0"
 ```
 
 Then consume AuroraGlass in your `CMakeLists.txt`:
@@ -71,6 +71,30 @@ application output. None of the three can be omitted. No NuGet package is used.
 
 The Release native interop DLL requires the **Microsoft Visual C++ x64
 Redistributable** to be present on the target machine.
+
+### WPF composition: overlay WPF controls on AuroraGlass
+
+If ordinary WPF controls must sit **above** the AuroraGlass surface, use the
+airspace-safe D3DImage path (`WpfGlassImageSource`) instead of the HwndHost
+path (`WpfRenderHost`). The HwndHost path renders into a native child window
+that always paints above the WPF visual tree; the D3DImage path renders
+offscreen and is presented as an ordinary WPF `ImageSource`, so WPF
+hit-testing works normally.
+
+```csharp
+var glass = new AuroraGlass.Wpf.WpfGlassImageSource(pixelWidth, pixelHeight);
+glass.SetMaterial(material);
+glass.SetPhysicalRects(new System.Windows.Rect(40, 40, 520, 400));
+glass.Start();  // CompositionTarget.Rendering-driven frame loop
+
+image.Source = glass.ImageSource;      // ordinary WPF ImageSource
+image.IsHitTestVisible = false;        // let WPF controls above it get clicks
+```
+
+Call `Resize(w, h)` on layout changes, and `Stop()`/`Start()` when the
+window is hidden/restored. Dispose the source on teardown. The same Release
+runtime files (managed assembly + native interop DLL + `shaders/`) are
+required.
 
 ## WinUI 3
 

@@ -15,7 +15,7 @@ The canonical repository build is serial.
 
 Install into a standalone prefix:
 
-    cmake --install build --config Debug --prefix build/sdk-stage/AuroraGlass-0.8.1
+    cmake --install build --config Debug --prefix build/sdk-stage/AuroraGlass-0.9.0
 
 The staged SDK contains:
 
@@ -34,7 +34,7 @@ Internal renderer and device headers are not part of the SDK.
 
 Point an external CMake project at the installed prefix:
 
-    cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/path/to/AuroraGlass-0.8.1
+    cmake -S . -B build -DCMAKE_PREFIX_PATH=C:/path/to/AuroraGlass-0.9.0
 
 Then consume AuroraGlass through:
 
@@ -112,7 +112,7 @@ The P8 fresh WinUI consumer validates:
 
 Current SDK version:
 
-    0.8.1
+    0.9.0
 
 VERSION is the canonical source. The same version is propagated to the generated native version API, CMake package metadata, staged VERSION file, and managed AuroraGlass assemblies.
 

@@ -6,7 +6,7 @@ and how to refresh a staged SDK safely. It is not a changelog.
 
 ## Current version status
 
-- SDK version: **0.8.1**
+- SDK version: **0.9.0**
 - Status: **pre-1.0**
 - Version source: the repository root `VERSION` file.
 
@@ -107,7 +107,7 @@ event (see `docs/VERSIONING.md`).
 
 ## Pre-1.0 warning
 
-Because the current version is 0.8.1, the pre-1.0 policy applies:
+Because the current version is 0.9.0, the pre-1.0 policy applies:
 
 > 0.x releases may still contain intentional breaking API changes, but such
 > changes must follow the repository's documented SemVer/pre-1.0 policy and
@@ -116,6 +116,19 @@ Because the current version is 0.8.1, the pre-1.0 policy applies:
 This is deliberately not 'anything can break at any time'. AuroraGlass already
 has a frozen public baseline, and breaking changes are constrained (MINOR-only,
 never silent PATCH).
+
+## Upgrading to 0.9.0
+
+No mandatory migration is required. Existing public API remains compatible.
+
+0.9.0 adds a new airspace-safe WPF composition path (WpfGlassImageSource,
+D3D11 -> shared BGRA -> D3D9Ex -> WPF D3DImage). Consumers that need ordinary
+WPF controls layered above AuroraGlass should prefer WpfGlassImageSource.
+
+The legacy WpfRenderHost (HwndHost) path remains available and unchanged, so
+existing HwndHost consumers do not need to migrate.
+
+This is an additive, backward-compatible feature release, not a breaking change.
 
 ## Upgrading to 0.8.1
 
