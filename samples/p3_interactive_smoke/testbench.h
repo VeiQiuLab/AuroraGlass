@@ -299,4 +299,83 @@ inline void Generate(int W, int H, std::vector<uint32_t>& out) {
     out = std::move(img.px);
 }
 
+// Default-material diagnostics: identical geometry on dark, light, and
+// high-contrast content so a highlight cannot be mistaken for background.
+inline void GeneratePolishBackground(int W, int H, int kind,
+                                     std::vector<uint32_t>& out) {
+    Img img(W, H);
+    const bool dark = kind == 0;
+    const uint32_t base = dark ? MakeRGB(24, 24, 24) : MakeRGB(236, 236, 236);
+    const uint32_t ink = dark ? MakeRGB(228, 228, 228) : MakeRGB(28, 28, 28);
+    img.FillRect(0, 0, W, H, base);
+    if (kind == 2) {
+        img.FillRect(W / 2, 0, W / 2, H, MakeRGB(24, 24, 24));
+        for (int x = W / 2 - 120; x < W / 2 + 120; x += 40)
+            img.VLine(x, 0, H, 2, x < W / 2 ? ink : MakeRGB(228, 228, 228));
+        img.Text(W / 4, H / 2 - 18, 4, ink, "GLASS 0123");
+        img.Text(W / 2 + 35, H / 2 - 18, 4, MakeRGB(228, 228, 228), "GLASS 0123");
+    } else {
+        for (int x = 0; x < W; x += 40) img.VLine(x, 0, H, 1, ink);
+        img.Text(W / 2 - 240, H / 2 - 18, 4, ink, "GLASS 0123456789");
+    }
+    out = std::move(img.px);
+}
+
+inline void GenerateRecordingOpticsBackground(int W, int H,
+                                               std::vector<uint32_t>& out) {
+    Img img(W, H);
+    const uint32_t base = MakeRGB(26, 26, 26);
+    const uint32_t ink = MakeRGB(225, 225, 225);
+    const uint32_t mid = MakeRGB(120, 120, 120);
+    img.FillRect(0, 0, W, H, base);
+
+    img.Text(85, 115, 4, ink, "LIQUID GLASS");
+    img.Text(85, 160, 3, mid, "REFRACTION 0123456789");
+    img.CircleOutline(155, 340, 52, 3, ink);
+    img.FillRect(255, 294, 110, 92, MakeRGB(210, 210, 210));
+    img.FillRect(385, 308, 85, 64, MakeRGB(78, 78, 78));
+
+    for (int x = 515; x <= 680; x += 18) img.VLine(x, 100, 220, 1, mid);
+    for (int y = 100; y <= 320; y += 18) img.HLine(515, y, 165, 1, mid);
+    for (int x = 760; x <= 1080; x += 20) img.VLine(x, 95, 170, 1, ink);
+    for (int y = 95; y <= 265; y += 20) img.HLine(760, y, 320, 1, ink);
+
+    img.FillRect(760, 335, 130, 100, MakeRGB(235, 235, 235));
+    img.FillRect(890, 335, 130, 100, MakeRGB(12, 12, 12));
+    img.FillRect(1020, 335, 130, 100, MakeRGB(200, 200, 200));
+    img.Text(770, 455, 3, ink, "HIGH CONTRAST");
+    out = std::move(img.px);
+}
+
+inline void GenerateRecordingControlsBackground(int W, int H,
+                                                 std::vector<uint32_t>& out) {
+    Img img(W, H);
+    img.FillRect(0, 0, W, H, MakeRGB(228, 228, 228));
+    const uint32_t line = MakeRGB(164, 164, 164);
+    for (int x = 0; x < W; x += 32) img.VLine(x, 0, H, 1, line);
+    for (int y = 0; y < H; y += 32) img.HLine(0, y, W, 1, line);
+    out = std::move(img.px);
+}
+
+inline void GenerateRecordingGeometryBackground(int W, int H,
+                                                 std::vector<uint32_t>& out) {
+    GenerateRecordingControlsBackground(W, H, out);
+    Img img(W, H);
+    img.px = std::move(out);
+    img.Text(115, 365, 3, MakeRGB(44, 44, 44), "LIQUID GLASS 0123456789");
+    img.Text(650, 365, 3, MakeRGB(44, 44, 44), "REFRACTION");
+    out = std::move(img.px);
+}
+
+inline void GenerateRecordingLabel(int W, int H, const std::string& title,
+                                   const std::string& detail,
+                                   std::vector<uint32_t>& out) {
+    Img img(W, H);
+    img.px.assign((size_t)W * H, 0);
+    img.FillRect(20, 18, 455, 80, 0xD8000000u);
+    img.Text(36, 31, 3, MakeRGB(246, 246, 246), title);
+    img.Text(36, 67, 2, MakeRGB(188, 188, 188), detail);
+    out = std::move(img.px);
+}
+
 } // namespace testbench

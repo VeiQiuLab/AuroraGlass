@@ -198,6 +198,10 @@ add_custom_command(TARGET P3_Interactive_Smoke POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
         ${CMAKE_SOURCE_DIR}/samples/p3_interactive_smoke/shaders
         $<TARGET_FILE_DIR:P3_Interactive_Smoke>/shaders)
+add_custom_command(TARGET P3_Interactive_Smoke POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        ${CMAKE_SOURCE_DIR}/samples/p3_interactive_smoke/assets/recording_before_dark.png
+        $<TARGET_FILE_DIR:P3_Interactive_Smoke>/recording_before_dark.png)
 
 # P3 Slice C 闂?multi-control visual sample (new; frozen baselines untouched).
 add_executable(P3_Controls_Smoke samples/p3_controls_smoke/main.cpp)

@@ -9,5 +9,5 @@ SamplerState s_Linear : register(s0);
 float4 BlitPS(float4 pos : SV_Position) : SV_Target
 {
     float2 uv = pos.xy * u_Texel.xy;
-    return float4(t_Src.Sample(s_Linear, uv).rgb, 1.0);
+    return t_Src.Sample(s_Linear, uv);
 }
